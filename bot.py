@@ -25,8 +25,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
-        # Ответ только на сообщения, содержащие имя бота или упоминание
-        if bot_username.lower() in user_message.lower():
+        # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
+        if bot_username.lower() in user_message.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
             await respond_to_user(update, context, user_message)
     else:
         # Ответ на все сообщения в личных чатах
@@ -36,6 +36,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message: str):
     chat_id = update.message.chat_id
 
+    # Отправка состояния "печатает..."
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     # Отправка запроса к API ChatGPT
@@ -43,7 +44,6 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     payload = {
         "model": "gpt-3.5-turbo",
         "provider": "You",
-        "web_search": True,
         "messages": [{"role": "user", "content": user_message}]
     }
     response = requests.post(api_url, json=payload)
@@ -53,9 +53,12 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     else:
         bot_reply = "Извините, произошла ошибка при обращении к API."
 
+    # Пересылка исходного сообщения, если боту ответили
+    if update.message.reply_to_message and update.message.reply_to_message.from_user.username == context.bot.username:
+        await context.bot.forward_message(chat_id=chat_id, from_chat_id=chat_id, message_id=update.message.reply_to_message.message_id)
+
     # Отправка ответа пользователю
-    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-    await context.bot.send_message(chat_id=chat_id, text=bot_reply)
+    await context.bot.send_message(chat_id=chat_id, text=bot_reply, reply_to_message_id=update.message.message_id)
 
 
 def main():
