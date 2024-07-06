@@ -42,7 +42,7 @@
 2. **Запуск контейнера:**
 
    ```
-   docker run --env-file .env -d unicum-bot
+   docker run -e "TG_BOT_TOKEN=your_token" -d unicum-bot
    ```
 
 3. **Настройка переменных окружения:**
