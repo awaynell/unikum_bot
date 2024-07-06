@@ -99,7 +99,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data['history'] = []
     chat_id = update.message.chat_id
-    await context.bot.send_message(chat_id, 'Контекст чата очищен.')
+    await update.message.reply_text('Контекст чата очищен.')
 
 
 def main():
