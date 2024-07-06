@@ -1,8 +1,15 @@
-import logging
 import requests
+import logging
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.helpers import escape_markdown
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv()
+
+tg_bot_token = getenv('TG_BOT_TOKEN')
 
 # Настройки логирования
 logging.basicConfig(
@@ -13,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Привет! Я бот, который использует API ChatGPT. Напиши мне что-нибудь!')
+    await update.message.reply_text('Привет! Готов ответить на твои вопросы.')
 
 # Функция для обработки сообщений
 
@@ -39,37 +46,62 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     # Отправка состояния "печатает..."
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
+    # Инициализация истории сообщений, если её ещё нет
+    if "history" not in context.user_data:
+        context.user_data["history"] = []
+
+    # Добавление нового сообщения пользователя в историю
+    context.user_data["history"].append(
+        {"role": "user", "content": user_message})
+
+    # Ограничение истории, чтобы не превышать лимиты API
+    max_history_length = 10  # Можно настроить по необходимости
+    context.user_data["history"] = context.user_data["history"][-max_history_length:]
+
+    logger.info('DIALOG_history: %s', context.user_data["history"])
+
     # Отправка запроса к API ChatGPT
     api_url = "http://212.113.101.93:1337/v1/chat/completions"
     payload = {
         "model": "gpt-3.5-turbo",
         "provider": "You",
-        "messages": [{"role": "user", "content": user_message}]
+        "messages": context.user_data["history"],
+        "temperature": 0.4,
+        "auto_continue": True
     }
     response = requests.post(api_url, json=payload)
 
     if response.status_code == 200:
+        logger.debug("API response: %s", response.json())
         bot_reply = response.json()["choices"][0]["message"]["content"]
+        # Добавление ответа бота в историю
+        context.user_data["history"].append(
+            {"role": "assistant", "content": bot_reply})
     else:
         bot_reply = "Извините, произошла ошибка при обращении к API."
 
-    # Пересылка исходного сообщения, если боту ответили
-    if update.message.reply_to_message and update.message.reply_to_message.from_user.username == context.bot.username:
-        await context.bot.forward_message(chat_id=chat_id, from_chat_id=chat_id, message_id=update.message.reply_to_message.message_id)
+    print('bot_reply', bot_reply)
 
     # Отправка ответа пользователю
-    await context.bot.send_message(chat_id=chat_id, text=bot_reply, reply_to_message_id=update.message.message_id)
+    await context.bot.send_message(chat_id=chat_id, text=bot_reply, reply_to_message_id=update.message.message_id, parse_mode='Markdown')
+
+
+async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['history'] = []
+    chat_id = update.message.chat_id
+    await context.bot.send_message(chat_id, 'Контекст очищен')
 
 
 def main():
     # Вставь свой токен здесь
-    token = '6728773804:AAEQ-pJpPvx1Q72ynoa1k4WnGCKPPZJzbhI'
+    token = tg_bot_token
 
     # Создаем приложение
     application = ApplicationBuilder().token(token).build()
 
     # Регистрируем обработчики
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("clear", clear_context))
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message))
 
