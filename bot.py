@@ -7,6 +7,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Messa
 from dotenv import load_dotenv
 from os import getenv
 
+from utils import set_model, set_provider, default_model, default_provider
+
 load_dotenv()
 
 tg_bot_token = getenv('TG_BOT_TOKEN')
@@ -24,6 +26,7 @@ handler.setFormatter(formatter)
 
 logger.addHandler(handler)
 
+
 # Функция для обработки команды /start
 
 
@@ -35,7 +38,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    chat_id = update.message.chat_id
     bot_username = context.bot.username
 
     # Проверка типа чата: личный или групповой
@@ -50,9 +52,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message: str):
     chat_id = update.message.chat_id
+    message_id = update.message.message_id
+    username = update.message.from_user.username
 
     # Отправка состояния "печатает..."
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+
+    provider = context.chat_data.get('provider', default_provider)
+    model = context.chat_data.get('model', default_model)
 
     # Инициализация истории сообщений, если её ещё нет
     if "history" not in context.chat_data:
@@ -66,17 +73,23 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     max_history_length = 30  # Можно настроить по необходимости
     context.chat_data["history"] = context.chat_data["history"][-max_history_length:]
 
-    logger.info('DIALOG_history: %s', context.chat_data["history"])
+    logger.info("USERNAME: %s", username, 'DIALOG_history: %s',
+                context.chat_data["history"])
 
     # Отправка запроса к API ChatGPT
     api_url = "http://212.113.101.93:1337/v1/chat/completions"
     payload = {
-        "model": "gpt-3.5-turbo",
-        "provider": "You",
+        "model": model,
+        "provider": provider,
         "messages": context.chat_data["history"],
         "temperature": 0.4,
-        "auto_continue": True
+        "auto_continue": True,
+        "conversation_id": chat_id,
+        "id": f"{chat_id}-{message_id}"
     }
+
+    logger.info('API_payload: %s', payload)
+
     response = requests.post(api_url, json=payload)
 
     if response.status_code == 200:
@@ -98,7 +111,6 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data['history'] = []
-    chat_id = update.message.chat_id
     await update.message.reply_text('Контекст чата очищен.')
 
 
@@ -112,6 +124,9 @@ def main():
     # Регистрируем обработчики
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("clear", clear_context))
+    application.add_handler(CommandHandler("provider", set_provider))
+    application.add_handler(CommandHandler("model", set_model))
+
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message))
 
