@@ -1,9 +1,9 @@
 import requests
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
-from telegram.helpers import escape_markdown
 from dotenv import load_dotenv
 from os import getenv
 
@@ -15,6 +15,14 @@ tg_bot_token = getenv('TG_BOT_TOKEN')
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 'W0' означает каждую неделю в воскресенье
+handler = TimedRotatingFileHandler('bot.log', when='W0', encoding='utf-8')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+logger.addHandler(handler)
 
 # Функция для обработки команды /start
 
