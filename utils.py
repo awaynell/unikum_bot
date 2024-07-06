@@ -12,8 +12,10 @@ default_provider = "You"
 default_model = "gpt-3.5-turbo"
 
 
-async def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = await update.message.from_user.id
+def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+
+    print('user_id: ', user_id, 'admin_id', admin_id)
 
     if (int(user_id) == int(admin_id)):
         return True
@@ -22,7 +24,7 @@ async def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    is_admin = await isAdmin(update, context)
+    is_admin = isAdmin(update, context)
 
     if is_admin == False:
         await update.message.reply_text(f'Текущий провайдер: {context.chat_data.get('provider', default_provider)}')
