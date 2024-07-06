@@ -47,25 +47,25 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     # Инициализация истории сообщений, если её ещё нет
-    if "history" not in context.user_data:
-        context.user_data["history"] = []
+    if "history" not in context.chat_data:
+        context.chat_data["history"] = []
 
     # Добавление нового сообщения пользователя в историю
-    context.user_data["history"].append(
+    context.chat_data["history"].append(
         {"role": "user", "content": user_message})
 
     # Ограничение истории, чтобы не превышать лимиты API
-    max_history_length = 10  # Можно настроить по необходимости
-    context.user_data["history"] = context.user_data["history"][-max_history_length:]
+    max_history_length = 30  # Можно настроить по необходимости
+    context.chat_data["history"] = context.chat_data["history"][-max_history_length:]
 
-    logger.info('DIALOG_history: %s', context.user_data["history"])
+    logger.info('DIALOG_history: %s', context.chat_data["history"])
 
     # Отправка запроса к API ChatGPT
     api_url = "http://212.113.101.93:1337/v1/chat/completions"
     payload = {
         "model": "gpt-3.5-turbo",
         "provider": "You",
-        "messages": context.user_data["history"],
+        "messages": context.chat_data["history"],
         "temperature": 0.4,
         "auto_continue": True
     }
@@ -75,8 +75,10 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
         logger.debug("API response: %s", response.json())
         bot_reply = response.json()["choices"][0]["message"]["content"]
         # Добавление ответа бота в историю
-        context.user_data["history"].append(
+        context.chat_data["history"].append(
             {"role": "assistant", "content": bot_reply})
+
+        logger.info('DIALOG_history: %s', context.chat_data["history"])
     else:
         bot_reply = "Извините, произошла ошибка при обращении к API."
 
