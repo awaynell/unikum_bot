@@ -13,13 +13,18 @@ load_dotenv()
 chromedriver_path = getenv('CHROMEDRIVER_PATH')
 
 
+# Настройки для headless режима
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+
 # Инициализация сервиса
 service = Service(chromedriver_path)
 
 
 def generateImg(prompt):
     # Инициализация браузера
-    driver = webdriver.Chrome(service=service)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.get('https://www.midgenai.com')
 
     # Даем странице загрузиться
