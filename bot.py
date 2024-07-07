@@ -1,3 +1,4 @@
+from telegram.ext import ContextTypes
 import requests
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -6,6 +7,8 @@ from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
 from os import getenv
+from generateImg import generateImg
+import base64
 
 from utils import set_model, set_provider, default_model, default_provider
 
@@ -114,6 +117,36 @@ async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Контекст чата очищен.')
 
 
+async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    draw_message = await update.message.reply_text('Начинаю рисовать...')
+
+    chat_id = update.message.chat_id
+    message_id = update.message.message_id
+
+    if len(context.args) == 0:
+        await update.message.reply_text('Пожалуйста, укажите запрос.')
+        return
+
+    prompt = ' '.join(context.args) if context.args else None
+    images_base64 = generateImg(prompt=prompt)
+
+    await context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+
+    for b64 in images_base64:
+        try:
+            base64_string = b64.split(',')[1]
+
+            # Decode the base64 string into binary data
+            image_binary = base64.b64decode(base64_string)
+
+            await context.bot.send_photo(chat_id=chat_id, photo=image_binary, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+
+            await draw_message.delete()
+        except Exception as e:
+            print(f"Error sending photo: {e}")
+            await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+
+
 def main():
     # Вставь свой токен здесь
     token = tg_bot_token
@@ -126,6 +159,7 @@ def main():
     application.add_handler(CommandHandler("clear", clear_context))
     application.add_handler(CommandHandler("provider", set_provider))
     application.add_handler(CommandHandler("model", set_model))
+    application.add_handler(CommandHandler("draw", draw))
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message))

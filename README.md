@@ -9,8 +9,8 @@
 1. **Клонирование репозитория и переход в директорию проекта:**
 
    ```
-   git clone https://github.com/your/tg_ai_bot.git
-   cd unicum-bot
+   git clone https://github.com/your/unikum_bot.git
+   cd unikum-bot
    ```
 
 2. **Установка зависимостей:**
@@ -36,13 +36,13 @@
    - Убедитесь, что Docker установлен и запущен на вашем компьютере.
    - Соберите Docker образ из Dockerfile:
      ```
-     docker build -t unicum-bot .
+     docker build -t unikum-bot .
      ```
 
 2. **Запуск контейнера:**
 
    ```
-   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -d unicum-bot
+   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -e "CHROMEDRIVER_PATH=<your_path>" -d unikum-bot
    ```
 
 ## Использование
