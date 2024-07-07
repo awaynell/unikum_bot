@@ -1,31 +1,29 @@
-# Use official Python image
-FROM python:3.12-slim
+# Используем Alpine Linux в качестве базового образа
+FROM alpine:latest
 
-# Set working directory
+# Устанавливаем необходимые пакеты для работы
+RUN apk update && apk add --no-cache \
+    python3 \
+    py3-pip \
+    wget \
+    unzip \
+    gnupg \
+    chromium \
+    udev \
+    ttf-freefont \
+    chromium-chromedriver
+
+# Устанавливаем переменную окружения CHROMEDRIVER_PATH
+ENV CHROMEDRIVER_PATH /usr/bin/chromedriver
+
+# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Use a different Debian mirror
-RUN sed -i 's/deb.debian.org/deb.debian.org/g' /etc/apt/sources.list
-
-# Install necessary packages
-RUN apt-get update && apt-get install -y wget unzip
-
-# Install Chrome and Chromedriver
-RUN wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && apt-get install -y /tmp/google-chrome.deb \
-    && CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d '.' -f 1) \
-    && CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}) \
-    && wget -q -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip \
-    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
-    && chmod +x /usr/local/bin/chromedriver \
-    && rm /tmp/google-chrome.deb /tmp/chromedriver.zip \
-    && echo "export CHROMEDRIVER_PATH=/usr/local/bin/chromedriver" >> /etc/profile
-
-# Copy bot files into container
+# Копируем файлы бота в контейнер
 COPY . .
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
+# Устанавливаем зависимости Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Run the bot
-CMD ["python", "bot.py"]
+# Запускаем бота
+CMD ["python3", "bot.py"]
