@@ -4,6 +4,9 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
+# Use a different Debian mirror
+RUN sed -i 's/deb.debian.org/deb.debian.org/g' /etc/apt/sources.list
+
 # Install necessary packages
 RUN apt-get update && apt-get install -y wget unzip
 
