@@ -7,6 +7,9 @@ WORKDIR /app
 # Копируем файлы бота в контейнер
 COPY . .
 
+# Копируем Chromedriver
+COPY /root/chromedriver .
+
 # Устанавливаем зависимости
 RUN pip install -r requirements.txt
 
