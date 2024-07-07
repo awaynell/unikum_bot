@@ -1,20 +1,17 @@
-# Используем Alpine Linux в качестве базового образа
-FROM alpine:latest
+# Используем официальный образ Python
+FROM python:3.12-alpine
 
 # Устанавливаем необходимые пакеты для работы
 RUN apk update && apk add --no-cache \
-    python3 \
-    py3-pip \
-    wget \
-    unzip \
-    gnupg \
     chromium \
+    chromium-chromedriver \
     udev \
     ttf-freefont \
-    chromium-chromedriver
+    wget \
+    unzip
 
-# Устанавливаем переменную окружения CHROMEDRIVER_PATH
-ENV CHROMEDRIVER_PATH /usr/bin/chromedriver
+# Устанавливаем переменную окружения для пути к chromedriver
+ENV CHROMEDRIVER_PATH /usr/lib/chromium/chromedriver
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -22,8 +19,10 @@ WORKDIR /app
 # Копируем файлы бота в контейнер
 COPY . .
 
-# Устанавливаем зависимости Python
+# Устанавливаем зависимости Python в виртуальной среде
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Запускаем бота
-CMD ["python3", "bot.py"]
+CMD ["python", "bot.py"]

@@ -42,7 +42,7 @@
 2. **Запуск контейнера:**
 
    ```
-   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -e "CHROMEDRIVER_PATH=<your_path>" -d unikum-bot
+   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -d unikum-bot
    ```
 
 ## Использование
