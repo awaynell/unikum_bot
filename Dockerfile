@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # Копируем Chromedriver
-COPY /root/chromedriver .
+COPY chromedriver /app/chromedriver
 
 # Устанавливаем зависимости
 RUN pip install -r requirements.txt
