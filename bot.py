@@ -138,15 +138,11 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             print('image_path', image_path)
 
-            try:
-                with open(image_path, 'rb') as photo:
-                    media.append(InputMediaPhoto(media=photo))
+            with open(image_path, 'rb') as photo:
+                media.append(InputMediaPhoto(media=photo))
 
-                # Удаляем временный файл после отправки
-                remove(image_path)
-            except Exception as e:
-                print(f"Error sending photo: {e}")
-                await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+            # Удаляем временный файл после отправки
+            remove(image_path)
 
         await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
 

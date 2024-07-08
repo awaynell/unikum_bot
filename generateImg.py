@@ -15,8 +15,6 @@ load_dotenv()
 
 chromedriver_path = getenv('CHROMEDRIVER_PATH')
 
-client = Client("mukaist/DALLE-4K")
-
 
 # Настройки для headless режима
 chrome_options = Options()
@@ -91,6 +89,8 @@ def generateImg(prompt):
 
 async def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        client = Client("mukaist/DALLE-4K")
+
         result = client.predict(
             prompt=prompt,
             negative_prompt="(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation",
