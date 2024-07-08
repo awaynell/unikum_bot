@@ -1,4 +1,3 @@
-from telegram.ext import ContextTypes
 import requests
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -128,7 +127,7 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     prompt = ' '.join(context.args) if context.args else None
-    image_path, _ = getImgFromAPI(prompt)
+    image_path, _ = getImgFromAPI(prompt, update, context)
 
     print('image_path', image_path)
 

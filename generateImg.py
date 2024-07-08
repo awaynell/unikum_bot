@@ -8,6 +8,8 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from dotenv import load_dotenv
 from os import getenv
+from telegram.ext import ContextTypes
+from telegram import Update
 
 load_dotenv()
 
@@ -87,17 +89,20 @@ def generateImg(prompt):
     return image_urls
 
 
-def getImgFromAPI(prompt):
-    result = client.predict(
-        prompt=prompt,
-        negative_prompt='bad anatomy, clothes, blank background, blurry, cropped, deformed, bad proportions, extra arms, extra fingers, extra hands, extra legs, extra limbs, incorrect physiology',
-        seed=0,
-        randomize_seed=True,
-        width=1024,
-        height=1024,
-        guidance_scale=5,
-        num_inference_steps=28,
-        api_name="/infer",
-
-    )
-    return result
+def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        result = client.predict(
+            prompt=prompt,
+            negative_prompt='bad anatomy, clothes, blank background, blurry, cropped, deformed, bad proportions, extra arms, extra fingers, extra hands, extra legs, extra limbs, incorrect physiology',
+            seed=0,
+            randomize_seed=True,
+            width=1024,
+            height=1024,
+            guidance_scale=5,
+            num_inference_steps=28,
+            api_name="/infer",
+        )
+        return result
+    except Exception as e:
+        print(f"Error: {e}")
+        update.message.reply_text(f"Произошла ошибка: {e}")
