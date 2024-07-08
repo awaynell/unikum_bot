@@ -149,6 +149,7 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
 
+    await draw_message.delete()
     # for path in image_paths:
 
     #     print('image_path', image_path)
