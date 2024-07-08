@@ -117,39 +117,43 @@ async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    draw_message = await update.message.reply_text('Начинаю рисовать...')
+    try:
+        draw_message = await update.message.reply_text('Начинаю рисовать...')
 
-    chat_id = update.message.chat_id
-    message_id = update.message.message_id
+        chat_id = update.message.chat_id
+        message_id = update.message.message_id
 
-    if len(context.args) == 0:
-        await update.message.reply_text('Пожалуйста, укажите запрос.')
-        return
+        if len(context.args) == 0:
+            await update.message.reply_text('Пожалуйста, укажите запрос.')
+            return
 
-    prompt = ' '.join(context.args) if context.args else None
-    image_paths, _ = getImgFromAPI(prompt, update, context)
+        prompt = ' '.join(context.args) if context.args else None
+        image_paths, _ = await getImgFromAPI(prompt, update, context)
 
-    media = []  # Создаем новый список media на каждой итерации
+        media = []  # Создаем новый список media на каждой итерации
 
-    for path in image_paths:
+        for path in image_paths:
 
-        image_path = path['image']
+            image_path = path['image']
 
-        print('image_path', image_path)
+            print('image_path', image_path)
 
-        try:
-            with open(image_path, 'rb') as photo:
-                media.append(InputMediaPhoto(media=photo))
+            try:
+                with open(image_path, 'rb') as photo:
+                    media.append(InputMediaPhoto(media=photo))
 
-            # Удаляем временный файл после отправки
-            remove(image_path)
-        except Exception as e:
-            print(f"Error sending photo: {e}")
-            await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+                # Удаляем временный файл после отправки
+                remove(image_path)
+            except Exception as e:
+                print(f"Error sending photo: {e}")
+                await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
 
-    await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
+        await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
 
-    await draw_message.delete()
+        await draw_message.delete()
+    except Exception as e:
+        print(f"Error sending photo: {e}")
+        await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
     # for path in image_paths:
 
     #     print('image_path', image_path)
