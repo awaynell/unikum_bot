@@ -1,3 +1,4 @@
+from gradio_client import Client
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -82,3 +83,20 @@ def generateImg(prompt):
     driver.quit()
 
     return image_urls
+
+
+def getImgFromAPI(prompt):
+    client = Client("stabilityai/stable-diffusion-3-medium")
+    result = client.predict(
+        prompt=prompt,
+        negative_prompt='',
+        seed=0,
+        randomize_seed=True,
+        width=1024,
+        height=1024,
+        guidance_scale=5,
+        num_inference_steps=28,
+        api_name="/infer",
+
+    )
+    return result

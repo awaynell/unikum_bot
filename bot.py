@@ -6,8 +6,8 @@ from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
-from os import getenv
-from generateImg import generateImg
+from os import getenv, remove
+from generateImg import generateImg, getImgFromAPI
 import base64
 
 from utils import set_model, set_provider, default_model, default_provider
@@ -128,23 +128,40 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     prompt = ' '.join(context.args) if context.args else None
-    images_base64 = generateImg(prompt=prompt)
+    image_path, _ = getImgFromAPI(prompt)
 
-    await context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+    print('image_path', image_path)
 
-    for b64 in images_base64:
-        try:
-            base64_string = b64.split(',')[1]
+    try:
+        with open(image_path, 'rb') as photo:
+            await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
 
-            # Decode the base64 string into binary data
-            image_binary = base64.b64decode(base64_string)
+        remove(image_path)
 
-            await context.bot.send_photo(chat_id=chat_id, photo=image_binary, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+        await draw_message.delete()
 
-            await draw_message.delete()
-        except Exception as e:
-            print(f"Error sending photo: {e}")
-            await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+    except Exception as e:
+        print(f"Error sending photo: {e}")
+        await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+    # await context.bot.send_photo(chat_id=chat_id, photo=image, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+
+    # images_base64 = generateImg(prompt=prompt)
+
+    # await context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+
+    # for b64 in images_base64:
+    #     try:
+    #         base64_string = b64.split(',')[1]
+
+    #         # Decode the base64 string into binary data
+    #         image_binary = base64.b64decode(base64_string)
+
+    #         await context.bot.send_photo(chat_id=chat_id, photo=image_binary, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+
+    #         await draw_message.delete()
+    #     except Exception as e:
+    #         print(f"Error sending photo: {e}")
+    #         await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
 
 
 def main():
