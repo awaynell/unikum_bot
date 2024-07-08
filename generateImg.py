@@ -89,18 +89,19 @@ def generateImg(prompt):
 
 async def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        client = Client("prithivMLmods/IMAGINEO-4K")
+        client = Client("mukaist/Midjourney")
 
         result = client.predict(
             prompt=prompt,
-            negative_prompt="(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation",
+            negative_prompt="(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck",
             use_negative_prompt=True,
+            style="2560 x 1440",
             seed=0,
             width=1024,
             height=1024,
             guidance_scale=6,
             randomize_seed=True,
-            api_name="/run",
+            api_name="/run"
         )
 
         print('result', result)
