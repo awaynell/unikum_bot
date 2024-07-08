@@ -13,6 +13,8 @@ load_dotenv()
 
 chromedriver_path = getenv('CHROMEDRIVER_PATH')
 
+client = Client("stabilityai/stable-diffusion-3-medium")
+
 
 # Настройки для headless режима
 chrome_options = Options()
@@ -86,10 +88,9 @@ def generateImg(prompt):
 
 
 def getImgFromAPI(prompt):
-    client = Client("stabilityai/stable-diffusion-3-medium")
     result = client.predict(
         prompt=prompt,
-        negative_prompt='',
+        negative_prompt='bad anatomy, clothes, blank background, blurry, cropped, deformed, bad proportions, extra arms, extra fingers, extra hands, extra legs, extra limbs, incorrect physiology',
         seed=0,
         randomize_seed=True,
         width=1024,
