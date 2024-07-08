@@ -1,7 +1,7 @@
 import requests
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from telegram import Update
+from telegram import Update, InputMediaPhoto
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
@@ -127,21 +127,44 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     prompt = ' '.join(context.args) if context.args else None
-    image_path, _ = getImgFromAPI(prompt, update, context)
+    image_paths, _ = getImgFromAPI(prompt, update, context)
 
-    print('image_path', image_path)
+    media = []  # Создаем новый список media на каждой итерации
 
-    try:
-        with open(image_path, 'rb') as photo:
-            await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+    for path in image_paths:
 
-        remove(image_path)
+        image_path = path['image']
 
-        await draw_message.delete()
+        print('image_path', image_path)
 
-    except Exception as e:
-        print(f"Error sending photo: {e}")
-        await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+        try:
+            with open(image_path, 'rb') as photo:
+                media.append(InputMediaPhoto(media=photo))
+
+            # Удаляем временный файл после отправки
+            remove(image_path)
+        except Exception as e:
+            print(f"Error sending photo: {e}")
+            await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+
+    await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
+
+    # for path in image_paths:
+
+    #     print('image_path', image_path)
+
+    #     try:
+    #         with open(image_path, 'rb') as photo:
+    #             await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
+
+    #         remove(image_path)
+
+    #         await draw_message.delete()
+
+    #     except Exception as e:
+    #         print(f"Error sending photo: {e}")
+    #         await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+
     # await context.bot.send_photo(chat_id=chat_id, photo=image, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
 
     # images_base64 = generateImg(prompt=prompt)
