@@ -89,7 +89,7 @@ def generateImg(prompt):
     return image_urls
 
 
-def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         result = client.predict(
             prompt=prompt,
@@ -109,4 +109,4 @@ def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
         return result
     except Exception as e:
         print(f"Error: {e}")
-        update.message.reply_text(f"Произошла ошибка: {e}")
+        await update.message.reply_text(f"Произошла ошибка: {e}")
