@@ -6,10 +6,10 @@ from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
 from os import getenv, remove
-from generateImg import generateImg, getImgFromAPI
-import base64
+from generateImg import getImgFromAPI
+import time
 
-from utils import set_model, set_provider, default_model, default_provider
+from utils import aexec, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models
 
 load_dotenv()
 
@@ -27,7 +27,6 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 
 logger.addHandler(handler)
-
 
 # Функция для обработки команды /start
 
@@ -120,6 +119,10 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         draw_message = await update.message.reply_text('Начинаю рисовать...')
 
+        img_model_key = context.chat_data.get('img_model', default_img_model)
+
+        print('img_model_key', img_model_key)
+
         chat_id = update.message.chat_id
         message_id = update.message.message_id
 
@@ -128,7 +131,7 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         prompt = ' '.join(context.args) if context.args else None
-        image_paths, _ = await getImgFromAPI(prompt, update, context)
+        image_paths, _ = await getImgFromAPI(prompt, update, context, img_model_key)
 
         media = []  # Создаем новый список media на каждой итерации
 
@@ -141,50 +144,12 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(image_path, 'rb') as photo:
                 media.append(InputMediaPhoto(media=photo))
 
-            # Удаляем временный файл после отправки
-            remove(image_path)
-
         await context.bot.send_media_group(chat_id=chat_id, media=media, caption=f"Сгенерированные изображения по запросу: {prompt}", reply_to_message_id=message_id)
 
         await draw_message.delete()
     except Exception as e:
         print(f"Error sending photo: {e}")
-        await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
-    # for path in image_paths:
-
-    #     print('image_path', image_path)
-
-    #     try:
-    #         with open(image_path, 'rb') as photo:
-    #             await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
-
-    #         remove(image_path)
-
-    #         await draw_message.delete()
-
-    #     except Exception as e:
-    #         print(f"Error sending photo: {e}")
-    #         await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
-
-    # await context.bot.send_photo(chat_id=chat_id, photo=image, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
-
-    # images_base64 = generateImg(prompt=prompt)
-
-    # await context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-
-    # for b64 in images_base64:
-    #     try:
-    #         base64_string = b64.split(',')[1]
-
-    #         # Decode the base64 string into binary data
-    #         image_binary = base64.b64decode(base64_string)
-
-    #         await context.bot.send_photo(chat_id=chat_id, photo=image_binary, caption=f"Сгенерированное изображение по запросу: {prompt}", reply_to_message_id=message_id)
-
-    #         await draw_message.delete()
-    #     except Exception as e:
-    #         print(f"Error sending photo: {e}")
-    #         await draw_message.edit_text(f"Ошибка при отправке изображения: {e}")
+        await draw_message.edit_text(f"Ошибка при отправке изображения: {e}\nТекущая модель: {img_model_key}")
 
 
 def main():
@@ -199,7 +164,9 @@ def main():
     application.add_handler(CommandHandler("clear", clear_context))
     application.add_handler(CommandHandler("provider", set_provider))
     application.add_handler(CommandHandler("model", set_model))
-    application.add_handler(CommandHandler("draw", draw))
+    application.add_handler(CommandHandler("draw", draw, block=False))
+    application.add_handler(CommandHandler("imgmodel", set_img_model))
+    application.add_handler(CommandHandler("getimgm", send_img_models))
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message))

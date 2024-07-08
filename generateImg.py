@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from os import getenv
 from telegram.ext import ContextTypes
 from telegram import Update
+from img_models import img_models
+
 
 load_dotenv()
 
@@ -87,26 +89,30 @@ def generateImg(prompt):
     return image_urls
 
 
-async def getImgFromAPI(prompt, update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def getImgFromAPI(prompt, update, context, model_key="imagineo"):
     try:
-        client = Client("mukaist/Midjourney")
+        # Получаем параметры модели
+        model = img_models.get(model_key)
 
-        result = client.predict(
-            prompt=prompt,
-            negative_prompt="(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck",
-            use_negative_prompt=True,
-            style="2560 x 1440",
-            seed=0,
-            width=1024,
-            height=1024,
-            guidance_scale=6,
-            randomize_seed=True,
-            api_name="/run"
-        )
+        if not model:
+            raise ValueError(f"Модель с ключом {model_key} не найдена")
 
-        print('result', result)
+        client = Client(model["name"])
+
+        # Добавляем prompt к параметрам модели
+        params = model["params"].copy()
+        params["prompt"] = prompt
+
+        print('params', params)
+
+        # Используем распаковку словаря для передачи параметров
+        result = await client.predict(**params)
 
         return result
     except Exception as e:
         print(f"Error: {e}")
-        await update.message.reply_text(f"Произошла ошибка: {e}")
+        await update.message.reply_text(f"Произошла ошибка: {e}\nТекущая модель: {model_key}")
+
+
+def returnResult(x):
+    return x
