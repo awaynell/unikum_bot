@@ -1,3 +1,4 @@
+import asyncio
 from gradio_client import Client
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -8,8 +9,6 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from dotenv import load_dotenv
 from os import getenv
-from telegram.ext import ContextTypes
-from telegram import Update
 from img_models import img_models
 
 
@@ -105,14 +104,12 @@ async def getImgFromAPI(prompt, update, context, model_key="imagineo"):
 
         print('params', params)
 
-        # Используем распаковку словаря для передачи параметров
-        result = await client.predict(**params)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, lambda: client.predict(**params))
+
+        print('result', result)
 
         return result
     except Exception as e:
         print(f"Error: {e}")
         await update.message.reply_text(f"Произошла ошибка: {e}\nТекущая модель: {model_key}")
-
-
-def returnResult(x):
-    return x
