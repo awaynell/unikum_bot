@@ -9,7 +9,7 @@ from os import getenv, remove
 from generateImg import getImgFromAPI
 import time
 
-from utils import aexec, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models
+from utils import set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
 
 load_dotenv()
 
@@ -167,6 +167,7 @@ def main():
     application.add_handler(CommandHandler("draw", draw, block=False))
     application.add_handler(CommandHandler("imgmodel", set_img_model))
     application.add_handler(CommandHandler("getimgm", send_img_models))
+    application.add_handler(CommandHandler("help", send_help))
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message))

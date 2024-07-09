@@ -15,15 +15,6 @@ default_model = "gpt-3.5-turbo"
 default_img_model = 'imagineo'
 
 
-def aexec(func):
-    def wrapper(update: Update, context: CallbackContext):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(func(update, context))
-        loop.close()
-    return wrapper
-
-
 # def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     user_id = update.message.from_user.id
 
@@ -80,3 +71,17 @@ async def send_img_models(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = f"Доступные модели txt2img:\n{models_list}\n\nТекущая модель: {
         context.chat_data.get('img_model', default_img_model)}"
     await update.message.reply_text(message)
+
+
+async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_message = (
+        "Список доступных команд: \n\n"
+        "/clear - Очищает контекст чата\n"
+        "/provider - Посмотреть или установить (после команды вписать) провайдера для текстовой модели\n"
+        "/model - Посмотреть или установить (после команды вписать) текстовую модель\n"
+        "/draw <prompt> - Сгенерировать картинку по запросу\n"
+        "/getimgm - Список доступных моделей txt2img\n"
+        "/imgmodel - Посмотреть или установить (после команды вписать) txt2img модель\n \n"
+        "Для вопросов к текстовой модели просто напишите свой вопрос боту"
+    )
+    await update.message.reply_text(help_message)
