@@ -1,15 +1,19 @@
+import os
 import aiohttp
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from telegram import Update, InputMediaPhoto
+from telegram import Update, InputMediaPhoto, InputFile
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
 from os import getenv
 from generateImg import getImgFromAPI
 import json
+import asyncio
+import re
 
-from utils import set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
+
+from utils import get_providers, get_models, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
 
 load_dotenv()
 
@@ -94,29 +98,75 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     bot_reply = "Извините, произошла ошибка при обращении к API."  # Значение по умолчанию
 
+    loop = asyncio.get_event_loop()
+
     async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, json=payload) as response:
+        async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
             if response.status == 200:
                 async for line in response.content:
                     decoded_line = line.decode('utf-8').strip()
+                    print('decoded_line', decoded_line)
                     try:
                         response_json = json.loads(decoded_line)
+                        print('response_json', response_json)
                         if response_json.get("type") == "content":
                             bot_reply = response_json["content"]
+                            print('bot_reply', bot_reply)
                             # Добавление ответа бота в историю
                             context.chat_data["history"].append(
                                 {"role": "assistant", "content": bot_reply})
 
                             logger.info('DIALOG_history: %s',
                                         context.chat_data["history"])
+
+                            # Обработка изображений
+                            if "\n<!-- generated images start" in bot_reply:
+                                print('bot_reply_images', bot_reply)
+                                await handle_images(bot_reply, chat_id, context, update, api_base_url, user_message)
+                                return
+
                     except json.JSONDecodeError:
                         logger.error(
                             f"Ошибка при декодировании JSON: {decoded_line}")
             else:
                 logger.error(f"Ошибка при обращении к API: {response.status}")
 
+    print('bot_reply', bot_reply)
+
     # Отправка ответа пользователю
     await context.bot.send_message(chat_id=chat_id, text=bot_reply, reply_to_message_id=update.message.message_id, parse_mode='Markdown')
+
+
+async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_message):
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+
+    print('inside handle images')
+
+    image_links = re.findall(r'\[!\[.*?\]\((.*?)\)\]', bot_reply)
+
+    print('image_links', image_links)
+
+    async with aiohttp.ClientSession() as session:
+        for image_link in image_links:
+            full_image_url = f"{api_base_url}{image_link}"
+            async with session.get(full_image_url) as img_response:
+                if img_response.status == 200:
+                    image_data = await img_response.read()
+                    file_name = os.path.basename(image_link)
+                    with open(file_name, 'wb') as f:
+                        f.write(image_data)
+
+                    try:
+                        with open(file_name, 'rb') as photo_file:
+                            await context.bot.send_photo(chat_id=chat_id, photo=photo_file, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n")
+                    except Exception as e:
+                        logger.error(f"Ошибка при отправке изображения: {e}")
+                    finally:
+                        # Удаление файла с сервера
+                        os.remove(file_name)
+                else:
+                    logger.error(f"Ошибка при загрузке изображения: {
+                                 img_response.status}")
 
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,13 +223,15 @@ def main():
     application.add_handler(CommandHandler("clear", clear_context))
     application.add_handler(CommandHandler("provider", set_provider))
     application.add_handler(CommandHandler("model", set_model))
+    application.add_handler(CommandHandler("models", get_models))
+    application.add_handler(CommandHandler("providers", get_providers))
     application.add_handler(CommandHandler("draw", draw, block=False))
     application.add_handler(CommandHandler("imgmodel", set_img_model))
     application.add_handler(CommandHandler("getimgm", send_img_models))
     application.add_handler(CommandHandler("help", send_help))
 
     application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND, handle_message))
+        filters.TEXT & ~filters.COMMAND, handle_message, block=False))
 
     # Запуск бота
     application.run_polling()
