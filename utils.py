@@ -10,7 +10,7 @@ load_dotenv()
 
 admin_id = getenv('TG_ADMIN_ID')
 
-default_provider = "You"
+default_provider = "Pizzagpt"
 default_model = "gpt-3.5-turbo"
 default_img_model = 'imagineo'
 

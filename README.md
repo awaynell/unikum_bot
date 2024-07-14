@@ -42,7 +42,7 @@
 2. **Запуск контейнера:**
 
    ```
-   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -d unikum-bot
+   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -e "API_BASE_URL=your_api_base_url" -d unikum-bot
    ```
 
 ## Использование

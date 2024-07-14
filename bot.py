@@ -1,19 +1,20 @@
-import requests
+import aiohttp
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from telegram import Update, InputMediaPhoto
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 from dotenv import load_dotenv
-from os import getenv, remove
+from os import getenv
 from generateImg import getImgFromAPI
-import time
+import json
 
 from utils import set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
 
 load_dotenv()
 
 tg_bot_token = getenv('TG_BOT_TOKEN')
+api_base_url = getenv('API_BASE_URL')
 
 # Настройки логирования
 logging.basicConfig(
@@ -74,11 +75,11 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     max_history_length = 30  # Можно настроить по необходимости
     context.chat_data["history"] = context.chat_data["history"][-max_history_length:]
 
-    logger.info("USERNAME: %s", username, 'DIALOG_history: %s',
-                context.chat_data["history"])
+    logger.info("USERNAME: %s", username)
+    logger.info("DIALOG_history: %s", context.chat_data["history"])
 
     # Отправка запроса к API ChatGPT
-    api_url = "http://212.113.101.93:1337/v1/chat/completions"
+    api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
         "model": model,
         "provider": provider,
@@ -91,20 +92,28 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     logger.info('API_payload: %s', payload)
 
-    response = requests.post(api_url, json=payload)
+    bot_reply = "Извините, произошла ошибка при обращении к API."  # Значение по умолчанию
 
-    if response.status_code == 200:
-        logger.debug("API response: %s", response.json())
-        bot_reply = response.json()["choices"][0]["message"]["content"]
-        # Добавление ответа бота в историю
-        context.chat_data["history"].append(
-            {"role": "assistant", "content": bot_reply})
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=payload) as response:
+            if response.status == 200:
+                async for line in response.content:
+                    decoded_line = line.decode('utf-8').strip()
+                    try:
+                        response_json = json.loads(decoded_line)
+                        if response_json.get("type") == "content":
+                            bot_reply = response_json["content"]
+                            # Добавление ответа бота в историю
+                            context.chat_data["history"].append(
+                                {"role": "assistant", "content": bot_reply})
 
-        logger.info('DIALOG_history: %s', context.chat_data["history"])
-    else:
-        bot_reply = "Извините, произошла ошибка при обращении к API."
-
-    print('bot_reply', bot_reply)
+                            logger.info('DIALOG_history: %s',
+                                        context.chat_data["history"])
+                    except json.JSONDecodeError:
+                        logger.error(
+                            f"Ошибка при декодировании JSON: {decoded_line}")
+            else:
+                logger.error(f"Ошибка при обращении к API: {response.status}")
 
     # Отправка ответа пользователю
     await context.bot.send_message(chat_id=chat_id, text=bot_reply, reply_to_message_id=update.message.message_id, parse_mode='Markdown')
