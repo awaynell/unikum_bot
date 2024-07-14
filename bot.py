@@ -119,8 +119,12 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
                                 current_time = time.time()
                                 # Проверка времени для редактирования сообщения
                                 if current_time - last_edit_time >= 3:
-                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply)
-                                    last_edit_time = current_time
+                                    try:
+                                        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
+                                    except Exception as e:
+                                        continue
+                                    finally:
+                                        last_edit_time = current_time
 
                                 # Обработка изображений
                                 if "\n<!-- generated images start" in temp_reply:
@@ -130,10 +134,12 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
                         except json.JSONDecodeError:
                             raise ValueError("Некорректное сообщение от API.")
-
-                    # Финальное редактирование сообщения после завершения цикла
-                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply)
-
+                    try:
+                        # Финальное редактирование сообщения после завершения цикла
+                        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
+                        bot_reply = temp_reply
+                    except Exception as e:
+                        print(f"Error: {e}")
                 else:
                     raise ValueError("Некорректное сообщение от API.")
     except Exception as e:
