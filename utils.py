@@ -127,8 +127,6 @@ async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message
         async with session.get(api_url) as response:
             if response.status == 200:
                 models = await response.json()
-                models_list = "\n".join(
-                    f"— `{model['model']}`" for model in models)
                 message = (
                     f"Доступные модели:\n\nТекущая модель: {
                         context.user_data.get('model', default_model)}"
@@ -137,8 +135,8 @@ async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message
                 # Создание кнопок для каждой модели
                 buttons = [
                     [InlineKeyboardButton(
-                        model['model'], callback_data=f'/model {model["model"]}')]
-                    for model in models
+                        model['model'], callback_data=f'/model {model["model"]}') for model in models[i:i+4]]
+                    for i in range(0, len(models), 4)
                 ]
                 reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -154,13 +152,13 @@ async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with session.get(api_url) as response:
             if response.status == 200:
                 providers = await response.json()
-                providers_list = "\n".join(
-                    f"— `{provider}`" for provider in providers)
+                available_providers = [key for key, value in providers.items(
+                ) if 'Auth' not in value and 'WebDriver' not in value]
 
                 buttons = [
                     [InlineKeyboardButton(
-                        provider, callback_data=f'/provider {provider}')]
-                    for provider in providers
+                        provider, callback_data=f'/provider {provider}') for provider in available_providers[i:i+4]]
+                    for i in range(0, len(available_providers), 4)
                 ]
                 reply_markup = InlineKeyboardMarkup(buttons)
 
