@@ -118,6 +118,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     try:
         async with aiohttp.ClientSession(read_timeout=None) as session:
             async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
+                print('response', response)
                 if response.status == 200:
                     temp_reply = ''
                     # Отправка начального сообщения
@@ -149,23 +150,23 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
                                     await handle_images(temp_reply, chat_id, context, update, api_base_url, user_message)
                                     await sent_message.delete()
                                     return
-                            else:
-                                raise ValueError(
-                                    "Некорректное сообщение от API.")
-
-                        except json.JSONDecodeError:
-                            raise ValueError("Некорректное сообщение от API.")
+                            elif response_json.get("type") == "error":
+                                raise ValueError(response_json["error"])
+                        except Exception as e:
+                            print(f"Error: {e}")
+                            await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=str(e))
                     try:
                         # Финальное редактирование сообщения после завершения цикла
                         await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
                         bot_reply = temp_reply
                     except Exception as e:
                         print(f"Error: {e}")
+                        raise ValueError(e)
                 else:
-                    raise ValueError("Некорректное сообщение от API.")
+                    raise ValueError(e)
     except Exception as e:
         print(f"Error: {e}")
-        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text="Некорректное сообщение от API.")
+        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply)
         return
 
     print('bot_reply', bot_reply)
