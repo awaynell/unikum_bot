@@ -2,9 +2,9 @@ import os
 import aiohttp
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from telegram import Update, InputMediaPhoto, InputFile
+from telegram import Update, InputMediaPhoto, InputFile, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ChatAction
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from dotenv import load_dotenv
 from os import getenv
 from generateImg import getImgFromAPI
@@ -13,7 +13,7 @@ import asyncio
 import re
 import time
 
-from utils import get_providers, get_models, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
+from utils import show_main_menu, get_providers, get_models, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
 
 load_dotenv()
 
@@ -37,7 +37,22 @@ logger.addHandler(handler)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Привет! Готов ответить на твои вопросы.')
+
+    reply_keyboard = [
+        [KeyboardButton('/providers'), KeyboardButton('/help')],
+        [KeyboardButton('/models')]
+    ]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+
+    await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=markup)
+    await show_main_menu(update, context, {
+        "help": "Помощь",
+        "providers": "Список провайдеров",
+        "models": "Список моделей",
+        "model": "Установить модель (пример /model gpt3.5-turbo)",
+        "provider": "Установить провайдера (пример /provider ReplicateHome)",
+        "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+    })
 
 # Функция для обработки сообщений
 
@@ -230,6 +245,24 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await draw_message.edit_text(f"Ошибка при отправке изображения: {e}\nТекущая модель: {img_model_key}")
 
 
+async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    command, name = query.data.split()
+    if command == '/model':
+        context.user_data['model'] = name
+        await query.edit_message_text(text=f"Вы выбрали модель: {name}")
+    if command == '/provider':
+        context.user_data['provider'] = name
+        await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
+        await get_models(update, context, query.message.message_id)
+
+
+async def sex(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Секс — это псиоп')
+
+
 def main():
     # Вставь свой токен здесь
     token = tg_bot_token
@@ -248,9 +281,12 @@ def main():
     application.add_handler(CommandHandler("imgmodel", set_img_model))
     application.add_handler(CommandHandler("getimgm", send_img_models))
     application.add_handler(CommandHandler("help", send_help))
+    application.add_handler(CommandHandler("sex", sex))
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message, block=False))
+
+    application.add_handler(CallbackQueryHandler(handle_model_selection))
 
     # Запуск бота
     application.run_polling()

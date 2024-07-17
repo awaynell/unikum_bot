@@ -1,10 +1,11 @@
-from telegram import Update
-from telegram.ext import ContextTypes, CallbackContext
+from telegram import Update, BotCommand, MenuButtonCommands, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
 
 from dotenv import load_dotenv
 from os import getenv
 from img_models import img_models
 import aiohttp
+
 
 load_dotenv()
 
@@ -95,22 +96,30 @@ async def send_img_models(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_message = (
-        "Список доступных команд: \n\n"
-        "/clear - Очищает контекст чата\n"
-        "/providers - Получить список доступных провайдеров\n"
-        "/models - Получить список доступных моделей (зависит от провайдера)\n"
-        "/provider - Посмотреть или установить (после команды вписать) провайдера для текстовой модели\n"
-        "/model - Посмотреть или установить (после команды вписать) текстовую модель\n"
-        "/draw <prompt> - Сгенерировать картинку по запросу\n"
-        "/getimgm - Список доступных моделей txt2img\n"
-        "/imgmodel - Посмотреть или установить (после команды вписать) txt2img модель\n \n"
-        "Для вопросов к текстовой модели просто напишите свой вопрос боту"
+    help_message1 = (
+        "У бота есть 2 потока работы: \n \n"
+        "1. Через личное API и провайдеров, предоставляющих набор моделей. У каждого провайдера свой набор моделей. У некоторых провайдеров также доступны модели для генерации картинок (`DeepInfraImage` и `ReplicateHome`)  \n \n К этому потоку относятся команды: \n \n - /providers - Получить список доступных провайдеров\n - /models - Получить список доступных моделей (зависит от провайдера)\n - /provider - Посмотреть или установить (после команды вписать) провайдера для модели\n - /model - Посмотреть или установить (после команды вписать) текущую модель\n\n"
     )
-    await update.message.reply_text(help_message)
+    help_message2 = (
+        "2. С помощью HuggingFace Spaces. Внимание! Генерация картинок ограничена лимитами HuggingFace Spaces. Для генерации без ограничений рекомендую 1 поток. Для этого потока доступны следующие команды:\n \n"
+        "- /draw <prompt> - Сгенерировать картинку по запросу (через модель из HuggingFace Spaces)\n"
+        "- /getimgm - Список доступных моделей из HuggingFace Spaces\n"
+        "- /imgmodel - Посмотреть или установить (после команды вписать) модель из (HuggingFace Spaces)\n \n"
+    )
+    help_message3 = (
+        "Общие команды: \n \n"
+        "- /clear - Очищает контекст чата (1 поток, сейчас контекст 30 сообщений)\n"
+    )
+    await update.message.reply_text(help_message1)
+    await update.message.reply_text(help_message2)
+    await update.message.reply_text(help_message3)
 
 
-async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message_id: int = None):
+    chat_id = update.effective_chat.id
+
+    current_message_id = message_id or update.message.message_id
+
     api_url = f"{api_base_url}/backend-api/v2/models/{
         context.user_data.get('provider', default_provider)}"
 
@@ -120,9 +129,20 @@ async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 models = await response.json()
                 models_list = "\n".join(
                     f"— `{model['model']}`" for model in models)
-                message = f"Доступные модели:\n{models_list}\n\nТекущая модель: {
-                    context.user_data.get('model', default_model)}"
-                await update.message.reply_text(message, parse_mode='Markdown')
+                message = (
+                    f"Доступные модели:\n\nТекущая модель: {
+                        context.user_data.get('model', default_model)}"
+                )
+
+                # Создание кнопок для каждой модели
+                buttons = [
+                    [InlineKeyboardButton(
+                        model['model'], callback_data=f'/model {model["model"]}')]
+                    for model in models
+                ]
+                reply_markup = InlineKeyboardMarkup(buttons)
+
+                await context.bot.send_message(text=message, reply_markup=reply_markup, parse_mode='Markdown', reply_to_message_id=current_message_id, chat_id=chat_id)
             else:
                 await update.message.reply_text("Произошла ошибка при получении списка моделей.")
 
@@ -136,8 +156,22 @@ async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 providers = await response.json()
                 providers_list = "\n".join(
                     f"— `{provider}`" for provider in providers)
-                message = f"Доступные провайдеры:\n{providers_list}\n\nТекущий провайдер: {
+
+                buttons = [
+                    [InlineKeyboardButton(
+                        provider, callback_data=f'/provider {provider}')]
+                    for provider in providers
+                ]
+                reply_markup = InlineKeyboardMarkup(buttons)
+
+                message = f"Доступные провайдеры:\n\nТекущий провайдер: {
                     context.user_data.get('provider', default_provider)}"
-                await update.message.reply_text(message, parse_mode='Markdown')
+                await update.message.reply_text(message, parse_mode='Markdown', reply_markup=reply_markup)
             else:
                 await update.message.reply_text("Произошла ошибка при получении списка моделей.")
+
+
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, commands: dict):
+    command_list = [BotCommand(key, value) for key, value in commands.items()]
+    await context.bot.set_my_commands(command_list, language_code="ru", scope=BotCommandScopeChat(chat_id=update.effective_chat.id))
+    await context.bot.set_chat_menu_button(menu_button=MenuButtonCommands(), chat_id=update.effective_chat.id)

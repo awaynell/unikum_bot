@@ -41,23 +41,6 @@ img_models = {
             "api_name": "/run"
         }
     },
-    "realvisxl": {
-        "name": "artificialguybr/RealVisXL-Free-DEMO",
-        "params": {
-            "negative_prompt": "",
-            "seed": 0,
-            "custom_width": 1024,
-            "custom_height": 1024,
-            "guidance_scale": 7,
-            "num_inference_steps": 28,
-            "sampler": "DPM++ 2M SDE Karras",
-            "aspect_ratio_selector": "1024 x 1024",
-            "use_upscaler": False,
-            "upscaler_strength": 0.55,
-            "upscale_by": 1.5,
-            "api_name": "/run",
-        }
-    },
     "gallo-3xl": {
         "name": "prithivMLmods/GALLO-3XL",
         "params": {
