@@ -113,13 +113,15 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     loop = asyncio.get_event_loop()
 
+    bot_reply = None
+
     try:
         async with aiohttp.ClientSession(read_timeout=None) as session:
             async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
                 if response.status == 200:
                     temp_reply = ''
                     # Отправка начального сообщения
-                    sent_message = await context.bot.send_message(chat_id=chat_id, text="...", reply_to_message_id=message_id)
+                    sent_message = await context.bot.send_message(chat_id=chat_id, text="Думаю...", reply_to_message_id=message_id)
                     last_edit_time = time.time()  # Время последнего редактирования
 
                     async for line in response.content:
@@ -136,16 +138,20 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
                                 if current_time - last_edit_time >= 3:
                                     try:
                                         await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
-                                    except Exception as e:
-                                        continue
-                                    finally:
                                         last_edit_time = current_time
+                                    except Exception as e:
+                                        print(f"Error: {e}")
+                                    finally:
+                                        continue
 
                                 # Обработка изображений
                                 if "\n<!-- generated images start" in temp_reply:
                                     await handle_images(temp_reply, chat_id, context, update, api_base_url, user_message)
                                     await sent_message.delete()
                                     return
+                            else:
+                                raise ValueError(
+                                    "Некорректное сообщение от API.")
 
                         except json.JSONDecodeError:
                             raise ValueError("Некорректное сообщение от API.")
