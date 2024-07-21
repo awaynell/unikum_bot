@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  bot:
+    build:
+      context: . # Контекст сборки - директория с Dockerfile
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - TG_ADMIN_ID=${TG_ADMIN_ID}
+      - API_BASE_URL=${API_BASE_URL}
+    volumes:
+      - .:/app # Монтируем текущую директорию в /app контейнера
+    command: ["python", "bot.py"] # Запуск команды, как указано в Dockerfile

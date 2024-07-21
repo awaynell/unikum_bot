@@ -107,7 +107,7 @@ async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "- /imgmodel - Посмотреть или установить (после команды вписать) модель из (HuggingFace Spaces)\n \n"
     )
     help_message3 = (
-        "Также, боту можно написать "
+        "Также, боту можно написать 'рисовать' или 'спросить' для смены режима общения. \n \n"
         "Общие команды: \n \n"
         "- /clear - Очищает контекст чата (1 поток, сейчас контекст 30 сообщений)\n"
     )
@@ -178,10 +178,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, com
 
 async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
     command = mode or context.args[0]
-
-    print('=====================')
-    print('command', command)
-    print('=====================')
 
     if command == 'draw':
         context.user_data['modetype'] = command
