@@ -13,7 +13,7 @@ import asyncio
 import re
 import time
 
-from utils import show_main_menu, get_providers, get_models, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
+from utils import set_mode, show_main_menu, get_providers, get_models, set_model, set_provider, default_model, default_provider, default_img_model, set_img_model, send_img_models, send_help
 
 load_dotenv()
 
@@ -39,10 +39,10 @@ logger.addHandler(handler)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_keyboard = [
-        [KeyboardButton('/providers'), KeyboardButton('/help')],
-        [KeyboardButton('/models')]
+        [KeyboardButton('Рисовать'), KeyboardButton('Спросить')],
     ]
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    markup = ReplyKeyboardMarkup(
+        reply_keyboard, one_time_keyboard=True, vertical=True)
 
     await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=markup)
     await show_main_menu(update, context, {
@@ -52,6 +52,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "model": "Установить модель (пример /model gpt3.5-turbo)",
         "provider": "Установить провайдера (пример /provider ReplicateHome)",
         "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+        "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
     })
 
 # Функция для обработки сообщений
@@ -59,7 +60,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
+    if "@" in user_message:
+        user_message = user_message.split(" ", 1)[1].strip()
+
+    print('user_message', user_message)
+
     bot_username = context.bot.username
+
+    if (user_message.lower() == 'спросить'):
+        await set_mode(update, context, 'text')
+        return
+    elif (user_message.lower() == 'рисовать'):
+        await set_mode(update, context, 'draw')
+        return
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
@@ -83,31 +96,36 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     model = context.user_data.get('model', default_model)
 
     # Инициализация истории сообщений, если её ещё нет
-    if "history" not in context.user_data:
-        context.user_data["history"] = []
+    if "history" not in context.chat_data:
+        context.chat_data["history"] = []
 
     # Добавление нового сообщения пользователя в историю
-    context.user_data["history"].append(
+    context.chat_data["history"].append(
         {"role": "user", "content": user_message})
 
     # Ограничение истории, чтобы не превышать лимиты API
     max_history_length = 30  # Можно настроить по необходимости
-    context.user_data["history"] = context.user_data["history"][-max_history_length:]
+    context.chat_data["history"] = context.chat_data["history"][-max_history_length:]
 
     logger.info("USERNAME: %s", username)
-    logger.info("DIALOG_history: %s", context.user_data["history"])
+    logger.info("DIALOG_history: %s", context.chat_data["history"])
 
     # Отправка запроса к API ChatGPT
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
         "model": model,
         "provider": provider,
-        "messages": context.user_data["history"],
+        "messages": context.chat_data["history"],
         "temperature": 0.4,
         "auto_continue": True,
         "conversation_id": chat_id,
         "id": f"{chat_id}-{message_id}"
     }
+
+    placeholder_answer = "Рисую..." if context.user_data[
+        'modetype'] and context.user_data['modetype'] == 'draw' else "Думаю..."
+
+    sent_message = await context.bot.send_message(chat_id=chat_id, text=placeholder_answer, reply_to_message_id=message_id)
 
     logger.info('API_payload: %s', payload)
 
@@ -122,7 +140,6 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
                 if response.status == 200:
                     temp_reply = ''
                     # Отправка начального сообщения
-                    sent_message = await context.bot.send_message(chat_id=chat_id, text="Думаю...", reply_to_message_id=message_id)
                     last_edit_time = time.time()  # Время последнего редактирования
 
                     async for line in response.content:
@@ -171,7 +188,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     print('bot_reply', bot_reply)
 
-    context.user_data["history"].append(
+    context.chat_data["history"].append(
         {"role": "assistant", "content": bot_reply})
 
     # Отправка ответа пользователю
@@ -289,6 +306,7 @@ def main():
     application.add_handler(CommandHandler("getimgm", send_img_models))
     application.add_handler(CommandHandler("help", send_help))
     application.add_handler(CommandHandler("sex", sex))
+    application.add_handler(CommandHandler("mode", set_mode))
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_message, block=False))

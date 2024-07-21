@@ -12,8 +12,8 @@ load_dotenv()
 admin_id = getenv('TG_ADMIN_ID')
 api_base_url = getenv('API_BASE_URL')
 
-default_provider = "Pizzagpt"
-default_model = "gpt-3.5-turbo"
+default_provider = "HuggingChat"
+default_model = "meta-llama/Meta-Llama-3-70B-Instruct"
 default_img_model = 'midjourney'
 
 
@@ -107,6 +107,7 @@ async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "- /imgmodel - Посмотреть или установить (после команды вписать) модель из (HuggingFace Spaces)\n \n"
     )
     help_message3 = (
+        "Также, боту можно написать "
         "Общие команды: \n \n"
         "- /clear - Очищает контекст чата (1 поток, сейчас контекст 30 сообщений)\n"
     )
@@ -173,3 +174,27 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, com
     command_list = [BotCommand(key, value) for key, value in commands.items()]
     await context.bot.set_my_commands(command_list, language_code="ru", scope=BotCommandScopeChat(chat_id=update.effective_chat.id))
     await context.bot.set_chat_menu_button(menu_button=MenuButtonCommands(), chat_id=update.effective_chat.id)
+
+
+async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
+    command = mode or context.args[0]
+
+    print('=====================')
+    print('command', command)
+    print('=====================')
+
+    if command == 'draw':
+        context.user_data['modetype'] = command
+        context.user_data['provider'] = 'DeepInfraImage'
+        context.user_data['model'] = 'stability-ai/sdxl'
+
+        default_provider = 'DeepInfraImage'
+        default_model = 'stability-ai/sdxl'
+    if command == 'text':
+        context.user_data['modetype'] = command
+        context.user_data['provider'] = 'HuggingChat'
+        context.user_data['model'] = 'meta-llama/Meta-Llama-3-70B-Instruct'
+
+        default_provider = 'HuggingChat'
+        default_model = 'meta-llama/Meta-Llama-3-70B-Instruct'
+    await update.message.reply_text(text=f"Провайдер {default_provider} и модель {default_model} установлена")
