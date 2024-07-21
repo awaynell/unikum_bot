@@ -73,6 +73,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif (user_message.lower() == 'рисовать'):
         await set_mode(update, context, 'draw')
         return
+    elif (user_message.lower().startswith('нарисуй')):
+        await set_mode(update, context, 'draw')
+        await respond_to_user(update, context, user_message)
+        return
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
