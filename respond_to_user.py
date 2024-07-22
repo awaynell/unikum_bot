@@ -14,6 +14,7 @@ from handle_images import handle_images
 async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message: str):
     chat_id = update.message.chat_id
     message_id = update.message.message_id
+    user_id = update.message.from_user.id
     username = update.message.from_user.username
 
     # Отправка состояния "печатает..."
@@ -22,27 +23,29 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     provider = context.user_data.get('provider', default_provider)
     model = context.user_data.get('model', default_model)
 
+    context_history_key = f"history-{user_id}-{chat_id}"
+
     # Инициализация истории сообщений, если её ещё нет
-    if "history" not in context.chat_data:
-        context.chat_data["history"] = []
+    if context_history_key not in context.chat_data:
+        context.chat_data[context_history_key] = []
 
     # Добавление нового сообщения пользователя в историю
-    context.chat_data["history"].append(
+    context.chat_data[context_history_key].append(
         {"role": "user", "content": user_message})
 
     # Ограничение истории, чтобы не превышать лимиты API
     max_history_length = 30  # Можно настроить по необходимости
-    context.chat_data["history"] = context.chat_data["history"][-max_history_length:]
+    context.chat_data[context_history_key] = context.chat_data[context_history_key][-max_history_length:]
 
     logger.info("USERNAME: %s", username)
-    logger.info("DIALOG_history: %s", context.chat_data["history"])
+    logger.info("DIALOG_history: %s", context.chat_data[context_history_key])
 
     # Отправка запроса к API ChatGPT
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
         "model": model,
         "provider": provider,
-        "messages": context.chat_data["history"],
+        "messages": context.chat_data[context_history_key],
         "temperature": 0.4,
         "auto_continue": True,
         "conversation_id": chat_id,
@@ -102,7 +105,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
                             await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=str(e))
                     try:
                         # Финальное редактирование сообщения после завершения цикла
-                        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
+                        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{temp_reply}", parse_mode='Markdown')
                         bot_reply = temp_reply
                     except Exception as e:
                         print(f"Error: {e}")
@@ -116,7 +119,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     print('bot_reply', bot_reply)
 
-    context.chat_data["history"].append(
+    context.chat_data[context_history_key].append(
         {"role": "assistant", "content": bot_reply})
 
     # Отправка ответа пользователю

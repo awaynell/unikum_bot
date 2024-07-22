@@ -58,8 +58,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
+        print('я тут')
         # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
-        if bot_username.lower() in user_message.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
+        if bot_username.lower() in update.message.text.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
             await respond_to_user(update, context, user_message)
     else:
         # Ответ на все сообщения в личных чатах
@@ -67,8 +68,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['history'] = []
-    await update.message.reply_text('Контекст чата очищен.')
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat_id
+
+    context.user_data[f"history-{user_id}-{chat_id}"] = []
+    await update.message.reply_text(f"Контекст чата {chat_id} очищен.")
 
 
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
