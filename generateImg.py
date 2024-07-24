@@ -107,8 +107,6 @@ async def getImgFromAPI(prompt, update, context, model_key="imagineo"):
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, lambda: client.predict(**params))
 
-        print('result', result)
-
         return result
     except Exception as e:
         print(f"Error: {e}")

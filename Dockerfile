@@ -1,3 +1,10 @@
+# --------------------------------
+#    
+# Depreceated, use docker-compose.yml instead
+#
+# --------------------------------
+
+
 # Используем официальный образ Python
 FROM python:3.12-alpine
 

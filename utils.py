@@ -1,43 +1,31 @@
 from telegram import Update, BotCommand, MenuButtonCommands, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
-from dotenv import load_dotenv
-from os import getenv
-from img_models import img_models
 import aiohttp
 
+from constants import admin_id, api_base_url, default_model, default_provider, default_img_model, default_img_provider
+from img_models import img_models
 
-load_dotenv()
+def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
 
-admin_id = getenv('TG_ADMIN_ID')
-api_base_url = getenv('API_BASE_URL')
+    print('user_id: ', user_id, 'admin_id', admin_id)
 
-default_provider = "HuggingChat"
-default_model = "meta-llama/Meta-Llama-3-70B-Instruct"
-default_img_model = 'midjourney'
+    if (int(user_id) == int(admin_id)):
+        return True
 
-
-# def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     user_id = update.message.from_user.id
-
-#     print('user_id: ', user_id, 'admin_id', admin_id)
-
-#     if (int(user_id) == int(admin_id)):
-#         return True
-
-#     return False
+    return False
 
 
 async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # is_admin = isAdmin(update, context)
+    is_admin = isAdmin(update, context)
 
-    # if is_admin == False:
-    #     await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("provider", default_provider)}')
-    #     return
+    if is_admin == False:
+        await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("provider", default_provider)}')
+        return
 
     provider = context.args[0] if context.args else None
     if provider:
-        context.user_data['provider'] = provider
+        context.bot_data['provider'] = provider
 
         api_url = f"{api_base_url}/backend-api/v2/models/{provider}"
 
@@ -51,31 +39,31 @@ async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             break
 
                     if df_model:
-                        context.user_data['model'] = default_model
+                        context.bot_data['model'] = default_model
                         await update.message.reply_text(f'Провайдер установлен: {provider}, модель по умолчанию: {default_model}')
                     else:
                         await update.message.reply_text(f'Провайдер установлен: {provider}, но модель по умолчанию не найдена.')
                 else:
                     await update.message.reply_text("Произошла ошибка при получении списка моделей.")
     else:
-        current_provider = context.user_data.get('provider', default_provider)
-        current_model = context.user_data.get('model', default_model)
+        current_provider = context.bot_data.get('provider', default_provider)
+        current_model = context.bot_data.get('model', default_model)
         await update.message.reply_text(f'Текущий провайдер: {current_provider}, модель по умолчанию: {current_model}')
 
 
 async def set_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # is_admin = isAdmin(update, context)
+    is_admin = isAdmin(update, context)
 
-    # if is_admin == False:
-    #     await update.message.reply_text(f'Текущая модель: {context.user_data.get('model', default_model)}')
-    #     return
+    if is_admin == False:
+        await update.message.reply_text(f'Текущая модель: {context.bot_data.get('model', default_model)}')
+        return
 
     model = context.args[0] if context.args else None
     if model:
-        context.user_data['model'] = model
+        context.bot_data['model'] = model
         await update.message.reply_text(f'Модель установлена: {model}')
     else:
-        await update.message.reply_text(f'Текущая модель: {context.user_data.get('model', default_model)}')
+        await update.message.reply_text(f'Текущая модель: {context.bot_data.get('model', default_model)}')
 
 
 async def set_img_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -117,6 +105,12 @@ async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message_id: int = None):
+    is_admin = isAdmin(update, context)
+
+    if is_admin == False:
+        await update.message.reply_text("Nah, you're not an admin.")
+        return
+
     chat_id = update.effective_chat.id
 
     current_message_id = message_id or update.message.message_id
@@ -130,7 +124,7 @@ async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message
                 models = await response.json()
                 message = (
                     f"Доступные модели:\n\nТекущая модель: {
-                        context.user_data.get('model', default_model)}"
+                        context.bot_data.get('model', default_model)}"
                 )
 
                 # Создание кнопок для каждой модели
@@ -147,6 +141,12 @@ async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message
 
 
 async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    is_admin = isAdmin(update, context)
+
+    if is_admin == False:
+        await update.message.reply_text("Nah, you're not an admin.")
+        return
+
     api_url = f"{api_base_url}/backend-api/v2/providers"
 
     async with aiohttp.ClientSession() as session:
@@ -181,16 +181,16 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
 
     if command == 'draw':
         context.user_data['modetype'] = command
-        context.user_data['provider'] = 'DeepInfraImage'
-        context.user_data['model'] = 'stability-ai/sdxl'
+        context.bot_data['provider'] = default_img_provider
+        context.bot_data['model'] = default_img_model
 
-        default_provider = 'DeepInfraImage'
-        default_model = 'stability-ai/sdxl'
+        df_provider = 'DeepInfraImage'
+        df_model = 'stability-ai/sdxl'
     if command == 'text':
         context.user_data['modetype'] = command
-        context.user_data['provider'] = 'HuggingChat'
-        context.user_data['model'] = 'meta-llama/Meta-Llama-3-70B-Instruct'
+        context.bot_data['provider'] = default_provider
+        context.bot_data['model'] = default_model
 
-        default_provider = 'HuggingChat'
-        default_model = 'meta-llama/Meta-Llama-3-70B-Instruct'
-    await update.message.reply_text(text=f"Провайдер {default_provider} и модель {default_model} установлена")
+        df_provider = default_provider
+        df_model = default_model
+    await update.message.reply_text(text=f"Провайдер {df_provider} и модель {df_model} установлена")

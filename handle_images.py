@@ -9,11 +9,7 @@ from logger import logger
 async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_message):
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
 
-    print('inside handle images')
-
     image_links = re.findall(r'\[!\[.*?\]\((.*?)\)\]', bot_reply)
-
-    print('image_links', image_links)
 
     async with aiohttp.ClientSession() as session:
         for image_link in image_links:

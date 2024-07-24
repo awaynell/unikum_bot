@@ -9,8 +9,8 @@
 1. **Клонирование репозитория и переход в директорию проекта:**
 
    ```
-   git clone https://github.com/your/unikum_bot.git
-   cd unikum-bot
+   git clone https://github.com/awaynell/unikum_bot.git
+   cd unikum_bot
    ```
 
 2. **Установка зависимостей:**
@@ -21,8 +21,7 @@
 
 3. **Настройка переменных окружения:**
 
-   - Создайте файл `.env`.
-   - Вставьте свой токен Telegram Bot API в переменную `TG_BOT_TOKEN` в файле `.env`.
+   - Переименуйте файл `.env.example` в `.env` и заполните переменные.
 
 4. **Запуск бота:**
    ```
@@ -34,16 +33,10 @@
 1. **Создание Docker образа:**
 
    - Убедитесь, что Docker установлен и запущен на вашем компьютере.
-   - Соберите Docker образ из Dockerfile:
+   - Убедитесь, что `.env` файл заполнено корректно.
      ```
-     docker build -t unikum-bot .
+     docker-compose up --build -d
      ```
-
-2. **Запуск контейнера:**
-
-   ```
-   docker run -e "TG_BOT_TOKEN=your_token" -e "TG_ADMIN_ID=your_id" -e "API_BASE_URL=your_api_base_url" -d unikum-bot
-   ```
 
 ## Использование
 
