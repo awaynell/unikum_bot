@@ -13,4 +13,4 @@ default_model = "Blackbox"
 default_img_provider = "DeepInfraImage"
 default_img_model = "stability-ai/sdxl"
 
-default_img_model = 'midjourney'
+default_img_model_flow2 = 'midjourney'
