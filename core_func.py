@@ -3,7 +3,7 @@ from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhot
 from telegram.ext import ContextTypes
 
 from utils import show_main_menu, set_mode, get_models
-from constants import default_img_model
+from constants import default_img_model, default_img_model_flow2
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
 
@@ -65,7 +65,8 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         draw_message = await update.message.reply_text('Начинаю рисовать...')
 
-        img_model_key = context.user_data.get('img_model', default_img_model)
+        img_model_key = context.user_data.get(
+            'img_model', default_img_model_flow2)
 
         print('img_model_key', img_model_key)
 
