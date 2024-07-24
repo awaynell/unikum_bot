@@ -68,8 +68,6 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         img_model_key = context.user_data.get(
             'img_model', default_img_model_flow2)
 
-        print('img_model_key', img_model_key)
-
         chat_id = update.message.chat_id
         message_id = update.message.message_id
 

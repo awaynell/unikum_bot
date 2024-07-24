@@ -23,7 +23,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     provider = context.bot_data.get('provider', default_provider)
     model = context.bot_data.get('model', default_model)
 
-    context_history_key = f"history-{user_id}-{chat_id}"
+    context_history_key = f"history-{chat_id}"
 
     # Инициализация истории сообщений, если её ещё нет
     if context_history_key not in context.chat_data:
@@ -52,7 +52,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
         "id": f"{chat_id}-{message_id}"
     }
 
-    modetype = context.user_data.get('modetype', "text")
+    modetype = context.chat_data.get('modetype', "text")
 
     placeholder_answer = "Рисую..." if modetype == 'draw' else "Думаю..."
 

@@ -5,6 +5,7 @@ import aiohttp
 from constants import admin_id, api_base_url, default_model, default_provider, default_img_model, default_img_provider
 from img_models import img_models
 
+
 def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
@@ -180,14 +181,14 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
     command = mode or context.args[0]
 
     if command == 'draw':
-        context.user_data['modetype'] = command
+        context.chat_data['modetype'] = command
         context.bot_data['provider'] = default_img_provider
         context.bot_data['model'] = default_img_model
 
         df_provider = 'DeepInfraImage'
         df_model = 'stability-ai/sdxl'
     if command == 'text':
-        context.user_data['modetype'] = command
+        context.chat_data['modetype'] = command
         context.bot_data['provider'] = default_provider
         context.bot_data['model'] = default_model
 
