@@ -29,7 +29,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     if "@" in user_message:
         user_message = user_message.split(" ", 1)[1].strip()
-
+    ru_user_message = f"{user_message}, напиши ответ на русском если я не просил обратного ранее в тексте, не комментируй это"
     bot_username = context.bot.username
 
     if (user_message.lower() == 'спросить'):
@@ -47,10 +47,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type in ['group', 'supergroup']:
         # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
         if bot_username.lower() in update.message.text.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
-            await respond_to_user(update, context, user_message)
+            await respond_to_user(update, context, ru_user_message)
     else:
         # Ответ на все сообщения в личных чатах
-        await respond_to_user(update, context, user_message)
+        await respond_to_user(update, context, ru_user_message)
 
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
