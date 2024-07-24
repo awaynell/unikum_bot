@@ -47,11 +47,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type in ['group', 'supergroup']:
         # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
         if bot_username.lower() in update.message.text.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
-            await respond_to_user(update, context, ru_user_message)
+            # Проверяем тип ответа нейронки
+            if context.chat_data['mode'] == 'draw':
+                # Если рисует, отправляем обратно только user_message
+                await context.bot.send_message(chat_id=update.message.chat_id, text=user_message)
+            else:
+                # Если пишет, ответ текстовой нейронки
+                await respond_to_user(update, context, ru_user_message)
     else:
         # Ответ на все сообщения в личных чатах
         await respond_to_user(update, context, ru_user_message)
-
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
