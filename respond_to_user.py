@@ -9,6 +9,7 @@ import time
 from constants import default_model, default_provider, api_base_url
 from logger import logger
 from handle_images import handle_images
+from utils import predict_user_message_context
 
 
 async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message: str):
@@ -19,9 +20,6 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
     # Отправка состояния "печатает..."
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-
-    provider = context.bot_data.get('provider', default_provider)
-    model = context.bot_data.get('model', default_model)
 
     context_history_key = f"history-{chat_id}"
 
@@ -40,6 +38,11 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     logger.info("USERNAME: %s", username, "DIALOG_history: %s",
                 context.chat_data[context_history_key])
 
+    await predict_user_message_context(update, context, user_message)
+
+    provider = context.bot_data.get('provider', default_provider)
+    model = context.bot_data.get('model', default_model)
+
     # Отправка запроса к API ChatGPT
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
@@ -52,7 +55,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
         "id": f"{chat_id}-{message_id}"
     }
 
-    modetype = context.chat_data.get('modetype', "text")
+    modetype = context.user_data.get('modetype', "text")
 
     placeholder_answer = "Рисую..." if modetype == 'draw' else "Думаю..."
 
