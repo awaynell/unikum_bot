@@ -2,8 +2,8 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
-from utils import show_main_menu, set_mode, get_models
-from constants import default_img_model, default_img_model_flow2
+from utils import get_models
+from constants import default_img_model_flow2
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
 
@@ -18,30 +18,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(
         reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=reply_markup)
-    await show_main_menu(update, context, {
-        "help": "Помощь",
-        "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
-        "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
-    })
+    # await show_main_menu(update, context, {
+    #     "help": "Помощь",
+    #     "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+    #     "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
+    # })
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
+    if user_message == None:
+        return
+
     if "@" in user_message:
         user_message = user_message.split(" ", 1)[1].strip()
-    ru_user_message = f"{user_message}, напиши ответ на русском если я не просил обратного ранее в тексте, не комментируй это"
+    ru_user_message = f"{
+        user_message}, напиши ответ на русском если я не просил обратного ранее в тексте, не комментируй это"
     bot_username = context.bot.username
-
-    if (user_message.lower() == 'спросить'):
-        await set_mode(update, context, 'text')
-        return
-    elif (user_message.lower() == 'рисовать'):
-        await set_mode(update, context, 'draw')
-        return
-    elif (user_message.lower().startswith('нарисуй')):
-        await set_mode(update, context, 'draw')
-        await respond_to_user(update, context, user_message)
-        return
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
@@ -51,14 +44,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Ответ на все сообщения в личных чатах
         await respond_to_user(update, context, ru_user_message)
-
-
-async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    chat_id = update.message.chat_id
-
-    context.user_data[f"history-{user_id}-{chat_id}"] = []
-    await update.message.reply_text(f"Контекст чата {chat_id} очищен.")
 
 
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
