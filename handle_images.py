@@ -7,8 +7,6 @@ from logger import logger
 
 
 async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_message):
-    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-
     image_links = re.findall(r'\[!\[.*?\]\((.*?)\)\]', bot_reply)
 
     async with aiohttp.ClientSession() as session:
@@ -22,13 +20,17 @@ async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_
                         f.write(image_data)
 
                     try:
+                        await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
                         with open(file_name, 'rb') as photo_file:
                             await context.bot.send_photo(chat_id=chat_id, photo=photo_file, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n")
                     except Exception as e:
                         logger.error(f"Ошибка при отправке изображения: {e}")
+
+                        await context.bot.send_message(chat_id=chat_id, text=f"Произошла ошибка при отправке изображения: {e}", reply_to_message_id=update.message.message_id)
                     finally:
                         # Удаление файла с сервера
                         os.remove(file_name)
                 else:
                     logger.error(f"Ошибка при загрузке изображения: {
                                  img_response.status}")
+                    await context.bot.send_message(chat_id=chat_id, text=f"Произошла ошибка при отправке изображения: {e}", reply_to_message_id=update.message.message_id)
