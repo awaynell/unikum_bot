@@ -16,3 +16,5 @@ default_img_model = "stability-ai/sdxl"
 default_img_model_flow2 = 'midjourney'
 
 prompt_predict = "The user will then write his request based on what he wrote, determine what action the user wants to perform, draw a picture or receive a response from a text model. After that, answer with one word to draw or text Here's the message:"
+
+max_generate_images_count = 4

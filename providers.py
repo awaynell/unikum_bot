@@ -38,7 +38,7 @@ providers = [
     {"provider": "Koala", "model": "gpt-3.5-turbo"},
 ]
 
-max_retry_count = 10
+max_retry_count = 30
 current_retry_count = 0
 
 

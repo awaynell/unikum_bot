@@ -17,7 +17,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
+    user_message = update.message.text or None
     if user_message == None:
         return
 
@@ -84,12 +84,12 @@ async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_T
     if command == '/model':
         context.bot_data['model'] = name
         constants.default_model = name
-        # await set_model(update, context, True, name)
+
         await query.edit_message_text(text=f"Вы выбрали модель: {name}")
     if command == '/provider':
         context.bot_data['provider'] = name
         constants.default_provider = name
-        # await set_provider(update, context, name)
+
         await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
         await get_models(update, context, query.message.message_id)
 
