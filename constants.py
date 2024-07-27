@@ -7,8 +7,8 @@ admin_id = getenv('TG_ADMIN_ID')
 tg_bot_token = getenv('TG_BOT_TOKEN')
 api_base_url = getenv('API_BASE_URL')
 
-default_provider = "Blackbox"
-default_model = "Blackbox"
+default_provider = "Pi"
+default_model = "gpt-4o"
 
 default_img_provider = "DeepInfraImage"
 default_img_model = "stability-ai/sdxl"
