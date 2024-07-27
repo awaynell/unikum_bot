@@ -2,7 +2,7 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
-from utils import get_models
+from utils import get_models, set_provider, set_model
 from constants import default_img_model_flow2
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
@@ -83,15 +83,22 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import constants
+
     query = update.callback_query
     await query.answer()
 
     command, name = query.data.split()
+    print('command', command, 'name', name)
     if command == '/model':
         context.bot_data['model'] = name
+        constants.default_model = name
+        # await set_model(update, context, True, name)
         await query.edit_message_text(text=f"Вы выбрали модель: {name}")
     if command == '/provider':
         context.bot_data['provider'] = name
+        constants.default_provider = name
+        # await set_provider(update, context, name)
         await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
         await get_models(update, context, query.message.message_id)
 
