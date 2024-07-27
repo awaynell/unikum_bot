@@ -2,27 +2,18 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
-from utils import get_models, set_provider, set_model
+from utils import get_models, show_main_menu
 from constants import default_img_model_flow2
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    reply_keyboard = [
-        [KeyboardButton('Рисовать')],
-        [KeyboardButton('Спросить')]
-    ]
-
-    reply_markup = ReplyKeyboardMarkup(
-        reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=reply_markup)
-    # await show_main_menu(update, context, {
-    #     "help": "Помощь",
-    #     "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
-    #     "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
-    # })
+    await update.message.reply_text('Привет! Готов ответить на твои вопросы.')
+    await show_main_menu(update, context, {
+        "help": "Помощь",
+        "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+    })
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
