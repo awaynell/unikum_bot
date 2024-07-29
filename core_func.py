@@ -32,7 +32,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = update.message.message_id
     bot_username = context.bot.username
 
-    if bot_username.lower() not in update.message.text.lower() and (not update.message.reply_to_message or update.message.reply_to_message.from_user.username != bot_username):
+    isConferenation = update.message.chat.type in ['group', 'supergroup']
+
+    if (isConferenation and bot_username.lower() not in update.message.text.lower()) and isConferenation and (not update.message.reply_to_message or update.message.reply_to_message.from_user.username != bot_username):
         return
 
     if user_message == None:
