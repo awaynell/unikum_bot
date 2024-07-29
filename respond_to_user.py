@@ -10,7 +10,6 @@ from constants import default_model, default_provider, api_base_url, max_generat
 
 from logger import logger
 from handle_images import handle_images
-from utils import predict_user_message_context
 from autoreplace_provider import autoreplace_provider
 import providers
 
@@ -41,8 +40,6 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     dialog_history = context.chat_data[context_history_key]
 
     logger.info("USERNAME: %s, DIALOG_history: %s", username, dialog_history)
-
-    await predict_user_message_context(update, context, user_message, chat_id, message_id)
 
     modetype = context.user_data.get('modetype', "text")
 

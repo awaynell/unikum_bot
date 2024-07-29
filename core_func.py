@@ -2,39 +2,64 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
-from utils import get_models, show_main_menu
-from constants import default_img_model_flow2
+from utils import get_models
+from constants import default_img_model_flow2, prompt_for_russian_AI_answer
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
+from utils import predict_user_message_context, translate_user_message
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Привет! Готов ответить на твои вопросы.')
-    await show_main_menu(update, context, {
-        "help": "Помощь",
-        "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
-    })
+
+    reply_keyboard = [
+        [KeyboardButton('Рисовать')],
+        [KeyboardButton('Спросить')]
+    ]
+
+    reply_markup = ReplyKeyboardMarkup(
+        reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=reply_markup)
+    # await show_main_menu(update, context, {
+    #     "help": "Помощь",
+    #     "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+    #     "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
+    # })
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text or None
+    user_message = update.message.text
+    chat_id = update.message.chat_id
+    message_id = update.message.message_id
+    bot_username = context.bot.username
+
+    if bot_username.lower() not in update.message.text.lower() and (not update.message.reply_to_message or update.message.reply_to_message.from_user.username != bot_username):
+        return
+
     if user_message == None:
         return
 
     if "@" in user_message:
         user_message = user_message.split(" ", 1)[1].strip()
     ru_user_message = f"{
-        user_message}, напиши ответ на русском если я не просил обратного ранее в тексте, не комментируй это"
-    bot_username = context.bot.username
+        user_message}, {prompt_for_russian_AI_answer}"
+
+    await predict_user_message_context(update, context, user_message, chat_id, message_id)
+
+    translated_user_message = ''
+
+    mode_type = context.user_data["modetype"]
+    if mode_type == 'draw':
+        translated_user_message = await translate_user_message(update, context, user_message, chat_id, message_id)
+    result_message = translated_user_message if mode_type == 'draw' else ru_user_message
 
     # Проверка типа чата: личный или групповой
     if update.message.chat.type in ['group', 'supergroup']:
         # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
         if bot_username.lower() in update.message.text.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
-            await respond_to_user(update, context, ru_user_message)
+            await respond_to_user(update, context, result_message)
     else:
         # Ответ на все сообщения в личных чатах
-        await respond_to_user(update, context, ru_user_message)
+        await respond_to_user(update, context, result_message)
 
 
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,22 +99,15 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import constants
-
     query = update.callback_query
     await query.answer()
 
     command, name = query.data.split()
-    print('command', command, 'name', name)
     if command == '/model':
         context.bot_data['model'] = name
-        constants.default_model = name
-
         await query.edit_message_text(text=f"Вы выбрали модель: {name}")
     if command == '/provider':
         context.bot_data['provider'] = name
-        constants.default_provider = name
-
         await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
         await get_models(update, context, query.message.message_id)
 
