@@ -1,9 +1,20 @@
 from telegram import Update, BotCommand, MenuButtonCommands, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 import aiohttp
+import asyncio
+import random
+import json
 
-from constants import admin_id, api_base_url, default_model, default_provider, default_img_model, default_img_provider
+from constants import admin_id, api_base_url, default_model, default_provider, default_img_model, default_img_provider, prompt_predict
 from img_models import img_models
+
+
+async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat_id
+
+    context.user_data[f"history-{user_id}-{chat_id}"] = []
+    await update.message.reply_text(f"Контекст чата {chat_id} очищен.")
 
 
 def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,21 +188,86 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, com
     await context.bot.set_chat_menu_button(menu_button=MenuButtonCommands(), chat_id=update.effective_chat.id)
 
 
-async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
+async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str, send_notifications: bool = True):
     command = mode or context.args[0]
 
     if command == 'draw':
-        context.chat_data['modetype'] = command
+        context.user_data['modetype'] = command
         context.bot_data['provider'] = default_img_provider
         context.bot_data['model'] = default_img_model
 
         df_provider = 'DeepInfraImage'
         df_model = 'stability-ai/sdxl'
     if command == 'text':
-        context.chat_data['modetype'] = command
+        context.user_data['modetype'] = command
         context.bot_data['provider'] = default_provider
         context.bot_data['model'] = default_model
 
         df_provider = default_provider
         df_model = default_model
-    await update.message.reply_text(text=f"Провайдер {df_provider} и модель {df_model} установлена")
+    if command == 'clear':
+        clear_context(update=update, context=context)
+
+    if send_notifications == True:
+        await update.message.reply_text(text=f"Провайдер {df_provider} и модель {df_model} установлена")
+
+
+async def predict_user_message_context(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message):
+
+    loop = asyncio.get_event_loop()
+
+    api_url = f"{api_base_url}/backend-api/v2/conversation"
+    payload = {
+        "model": 'Blackbox',
+        "provider": "Blackbox",
+        "messages": [{"role": "user", "content": f"{prompt_predict} {user_message}"}],
+        "temperature": 0.4,
+        "auto_continue": True,
+        "conversation_id": random.random(),
+        "id": random.random()
+    }
+
+    temp_reply = ''
+    predict_model_reply = ''
+    # значение по умолчанию
+    predict = 'text'
+
+    try:
+        # send request to AI API
+        async with aiohttp.ClientSession(read_timeout=None) as session:
+            async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
+                if response.status == 200:
+                    async for line in response.content:
+                        decoded_line = line.decode('utf-8').strip()
+                        response_json = json.loads(decoded_line)
+                        if (response_json.get("type") == "provider"):
+                            continue
+                        if response_json.get("type") == "content":
+                            print('predict: ', response_json["content"])
+                            temp_reply += response_json["content"]
+
+                    # text. draw. clear.
+                    predict_model_reply = temp_reply.lower()
+
+                    print('=======================================')
+                    print('predict_model_reply: ', predict_model_reply)
+                    print('=======================================')
+
+                    predict_text_rule = 'text' or 'текст' and (
+                        'draw' or 'рисовать' or 'нарисуй' or 'рисуем')
+                    predict_draw_rule = 'draw' or 'рисовать'
+
+                    isText = predict_text_rule in predict_model_reply.split(
+                        ' ')
+                    isDraw = predict_draw_rule in predict_model_reply.split(
+                        ' ')
+
+                    predict = 'draw' if isDraw else 'text'
+                else:
+                    # replace model
+                    raise Exception(
+                        f"Возникла ошибка на стадии анализа сообщения: {response.status}")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        await set_mode(update, context, predict, False)

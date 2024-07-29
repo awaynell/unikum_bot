@@ -5,4 +5,8 @@
 __pycache__
 
 *.log
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 .idea
