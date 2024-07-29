@@ -5,9 +5,10 @@ import asyncio
 import random
 import json
 
-from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict
+from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message
 from img_models import img_models
 from common import change_provider_data
+
 
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -308,3 +309,45 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
         await context.bot.edit_message_text(chat_id=chat_id, message_id=predict_message.message_id, text=e)
     finally:
         await set_mode(update, context, predict, False)
+
+
+async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
+    loop = asyncio.get_event_loop()
+
+    api_url = f"{api_base_url}/backend-api/v2/conversation"
+    payload = {
+        "model": 'Blackbox',
+        "provider": "Blackbox",
+        "messages": [{"role": "user", "content": f"{prompt_for_translate_message} {user_message}"}],
+        "temperature": 0.1,
+        "auto_continue": False,
+        "conversation_id": random.random(),
+        "id": random.random()
+    }
+
+    temp_reply = ''
+
+    try:
+        # send request to AI API
+        async with aiohttp.ClientSession(read_timeout=None) as session:
+            async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
+                if response.status == 200:
+                    async for line in response.content:
+                        decoded_line = line.decode('utf-8').strip()
+                        response_json = json.loads(decoded_line)
+                        if (response_json.get("type") == "provider"):
+                            continue
+                        if response_json.get("type") == "content":
+                            print('predict: ', response_json["content"])
+                            temp_reply += response_json["content"]
+                    print(f"Перевод: {temp_reply}")
+                    return temp_reply 
+                   
+                else:
+                    raise Exception(
+                        f"Возникла ошибка на стадии перевода сообщения: {response.status}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    
+        
