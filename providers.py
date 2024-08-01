@@ -51,7 +51,8 @@ img_providers = [
     {
         "provider": "ReplicateHome",
         "model": "playgroundai/playground-v2.5-1024px-aesthetic",
-    }, {
+    },
+    {
         "provider": "ReplicateHome",
         "model": "bytedance/sdxl-lightning-4step",
     },

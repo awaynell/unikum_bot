@@ -6,7 +6,7 @@ from telegram.constants import ChatAction
 from telegram import InputMediaPhoto
 import logging
 
-from constants import max_generate_images_count
+from constants import max_generate_images_count, default_model, default_provider
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,10 @@ async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_
 async def fetch_and_send_images(session, image_links, chat_id, context, update, api_base_url, user_message):
     media_group = []
     temp_files = []
+
+    current_provider = context.bot_data.get(
+        'provider', default_provider)
+    current_model = context.bot_data.get('model', default_model)
 
     for image_link in image_links:
         full_image_url = f"{api_base_url}{image_link}"
@@ -51,7 +55,7 @@ async def fetch_and_send_images(session, image_links, chat_id, context, update, 
 
     if (len(media_group) > max_generate_images_count - 1):
         await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-        await context.bot.send_media_group(chat_id=chat_id, media=media_group, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n")
+        await context.bot.send_media_group(parse_mode="Markdown", chat_id=chat_id, media=media_group, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n \n `via {current_provider} {current_model}`")
         # Удаление файлов после отправки
         for file_name in temp_files:
             try:

@@ -10,7 +10,6 @@ from img_models import img_models
 from common import change_provider_data
 
 
-
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     chat_id = update.message.chat_id
@@ -341,13 +340,20 @@ async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_T
                             print('predict: ', response_json["content"])
                             temp_reply += response_json["content"]
                     print(f"Перевод: {temp_reply}")
-                    return temp_reply 
-                   
+                    return temp_reply
+
                 else:
                     raise Exception(
                         f"Возникла ошибка на стадии перевода сообщения: {response.status}")
     except Exception as e:
         print(f"Error: {e}")
 
-    
-        
+
+async def set_defimgm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global default_img_provider, default_img_model
+    provider, model = context.args
+
+    default_img_provider = provider
+    default_img_model = model
+
+    await update.message.reply_text(text=f"Вы установили {default_img_provider} и {default_img_model} для генерации изображений по умолчанию.")

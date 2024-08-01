@@ -112,10 +112,6 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                     'handle_model_response': handle_model_response
                 }
 
-                if (response.content.total_bytes == 0):
-                    await autoreplace_provider(**autoreplace_provider_arguments)
-                    return
-
                 async for line in response.content:
                     print('line: ', line)
                     decoded_line = line.decode('utf-8').strip()

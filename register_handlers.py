@@ -1,6 +1,6 @@
 from telegram.ext import CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
-from utils import get_providers, clear_context, get_models, set_model, set_provider, set_img_model, send_img_models, send_help
+from utils import get_providers, clear_context, get_models, set_model, set_provider, set_img_model, send_img_models, send_help, set_defimgm
 from core_func import start, draw, sex, handle_message, handle_model_selection
 
 
@@ -16,6 +16,7 @@ def register_handlers(application):
     application.add_handler(CommandHandler("imgmodel", set_img_model))
     application.add_handler(CommandHandler("getimgm", send_img_models))
     application.add_handler(CommandHandler("help", send_help))
+    application.add_handler(CommandHandler("defimgm", set_defimgm))
     application.add_handler(CommandHandler("sex", sex))
 
     application.add_handler(MessageHandler(
