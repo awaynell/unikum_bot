@@ -94,36 +94,44 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
 
     async with aiohttp.ClientSession(read_timeout=None) as session:
         async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
+            print('response.status', response.status)
             if response.status == 200:
                 # Отправка начального сообщения
                 last_edit_time = time.time()  # Время последнего редактирования
 
+                autoreplace_provider_arguments = {
+                    'temp_reply': temp_reply,
+                    'chat_id': chat_id,
+                    'message_id': message_id,
+                    'dialog_history': dialog_history,
+                    'context': context,
+                    'update': update,
+                    'user_message': user_message,
+                    'sent_message': sent_message,
+                    'context_history_key': context_history_key,
+                    'handle_model_response': handle_model_response
+                }
+
+                if (response.content.total_bytes == 0):
+                    await autoreplace_provider(**autoreplace_provider_arguments)
+                    return
+
                 async for line in response.content:
+                    print('line: ', line)
                     decoded_line = line.decode('utf-8').strip()
+                    print('decoded_line: ', decoded_line)
                     try:
                         response_json = json.loads(decoded_line)
                         print('=========================')
                         print(response_json)
                         print('=========================')
 
-                        autoreplace_provider_arguments = {
-                            'temp_reply': temp_reply,
-                            'chat_id': chat_id,
-                            'message_id': message_id,
-                            'dialog_history': dialog_history,
-                            'context': context,
-                            'update': update,
-                            'user_message': user_message,
-                            'sent_message': sent_message,
-                            'context_history_key': context_history_key,
-                            'handle_model_response': handle_model_response
-                        }
-
                         # handle error
                         if (response_json.get("type") == "error"):
                             await autoreplace_provider(**autoreplace_provider_arguments)
                             return
                         elif response_json.get("type") == "content":
+                            print('content: ', response_json["content"])
                             temp_reply += response_json["content"]
 
                             # Обработка изображений
@@ -145,8 +153,6 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                                     print(f"Error: {e}")
                                 finally:
                                     continue
-                        elif response_json.get("type") == "error":
-                            raise ValueError(response_json["error"])
                     except Exception as e:
                         print(f"Error: {e}")
                         await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=str(e))
