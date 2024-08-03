@@ -12,8 +12,8 @@ async def change_provider_data(update: Update, context: ContextTypes.DEFAULT_TYP
     context.bot_data['provider'] = _provider
     context.bot_data['model'] = _model
 
-    constants.default_model = model
-    constants.default_provider = provider
+    constants.default_model = _model
+    constants.default_provider = _provider
 
     if (withNotificationMsg):
-        await update.message.reply_text(f'Модель {model} и провайдер {provider} установлены')
+        await update.message.reply_text(f'Модель {_model} и провайдер {_provider} установлены')

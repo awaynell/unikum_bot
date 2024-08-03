@@ -55,7 +55,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result_message = translated_user_message if mode_type == 'draw' else ru_user_message
 
     # Проверка типа чата: личный или групповой
-    if update.message.chat.type in ['group', 'supergroup']:
+    if isConferenation:
         # Ответ только на сообщения, содержащие имя бота или упоминание, или если ответ на сообщение бота
         if bot_username.lower() in update.message.text.lower() or (update.message.reply_to_message and update.message.reply_to_message.from_user.username == bot_username):
             await respond_to_user(update, context, result_message)

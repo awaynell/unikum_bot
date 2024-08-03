@@ -248,11 +248,13 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
 async def predict_user_message_context(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
     predict_message = await context.bot.send_message(chat_id=chat_id, text="Определяю контекст сообщения...", reply_to_message_id=message_id)
 
+    print('Внутри predict_user_message_context', user_message)
+
     loop = asyncio.get_event_loop()
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": 'Blackbox',
+        "model": "Blackbox",
         "provider": "Blackbox",
         "messages": [{"role": "user", "content": f"{prompt_predict} {user_message}"}],
         "temperature": 0.1,
@@ -260,6 +262,8 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
         "conversation_id": random.random(),
         "id": random.random()
     }
+
+    print('API data', f"api_url: {api_url}, payload: {payload}")
 
     temp_reply = ''
     predict_model_reply = ''
@@ -271,10 +275,13 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
         async with aiohttp.ClientSession(read_timeout=None) as session:
             async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
                 if response.status == 200:
+                    print('response.status == 200')
                     async for line in response.content:
                         decoded_line = line.decode('utf-8').strip()
                         response_json = json.loads(decoded_line)
+                        print('predict_response_json', response_json)
                         if (response_json.get("type") == "provider"):
+                            print('predict_response_json.get("type") == "provider"')
                             continue
                         if response_json.get("type") == "content":
                             print('predict: ', response_json["content"])

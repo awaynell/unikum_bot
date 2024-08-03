@@ -1,8 +1,9 @@
 providers = [
+    {"provider": "Blackbox", "model": "Blackbox"},
+    {"provider": "Marsyoo", "model": "gpt-4o"},
     {"provider": "FreeNetfly", "model": "gpt-4"},
     {"provider": "DDG", "model": "claude-3-haiku-20240307"},
     {"provider": "You", "model": "claude-3-opus"},
-    {"provider": "Blackbox", "model": "Blackbox"},
     {"provider": "DDG", "model": "meta-llama/Llama-3-70b-chat-hf"},
     {"provider": "You", "model": "llama3"},
     {"provider": "You", "model": "gemini-pro"},
@@ -61,7 +62,7 @@ img_providers = [
         "model": "stability-ai/sdxl"
     }]
 
-max_retry_count = 30
+max_retry_count = 10
 current_retry_count = 0
 
 

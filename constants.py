@@ -17,7 +17,7 @@ default_img_model = img_providers[0]['model']
 
 default_img_model_flow2 = 'midjourney'
 
-prompt_predict = "If the test is further similar to a question, a request to explain, to find information, then answer with one word text, in other cases answer draw:"
+prompt_predict = "Next, I'll give you a message. You have to define the context of the message and what the user wants. You have 2 possible answers to choose from: text and draw. Answer only one of these two options. ANSWER IN ONE WORD. Here is the user's message:"
 
 max_generate_images_count = 2
 
