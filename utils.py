@@ -254,8 +254,8 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": "Blackbox",
-        "provider": "Blackbox",
+        "model": "gpt-3.5-turbo",
+        "provider": "Pizzagpt",
         "messages": [{"role": "user", "content": f"{prompt_predict} {user_message}"}],
         "temperature": 0.1,
         "auto_continue": False,
