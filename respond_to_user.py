@@ -5,13 +5,14 @@ from telegram.ext import ContextTypes
 import json
 import asyncio
 import time
-
-from constants import default_model, default_provider, api_base_url, max_generate_images_count
-
 from logger import logger
+
+
+from constants import default_model, default_provider, api_base_url, max_generate_images_count, default_img_model, default_img_provider
 from handle_images import handle_images
 from autoreplace_provider import autoreplace_provider
 import providers
+from utils import escape_markdown
 
 
 async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message: str):
@@ -62,9 +63,15 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
 async def handle_model_response(temp_reply, chat_id, message_id, dialog_history, context, update, user_message, sent_message, context_history_key, current_img_count: int = 0, image_links: list = []):
     loop = asyncio.get_event_loop()
+    modetype = context.user_data.get('modetype', "text")
 
-    provider = context.bot_data.get('provider', default_provider)
-    model = context.bot_data.get('model', default_model)
+    provider = context.bot_data.get(
+        'provider', default_provider) if modetype == 'text' else context.bot_data.get(
+        'imgprovider', default_img_provider)
+
+    model = context.bot_data.get(
+        'model', default_model) if modetype == 'text' else context.bot_data.get(
+        'imgmodel', default_img_model)
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
@@ -77,10 +84,6 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
         "id": f"{chat_id}-{message_id}"
     }
 
-    print('=========================')
-    print('current_img_count', current_img_count, image_links)
-    print('=========================')
-
     if (len(image_links) > 0):
         await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count}")
 
@@ -89,8 +92,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
         await sent_message.delete()
         return
 
-    logger.info("CURRENT PROVIDER: %s, CURRENT MODEL: %s", context.bot_data.get(
-        'provider', default_provider), context.bot_data.get('model', default_model))
+    logger.info("CURRENT PROVIDER: %s, CURRENT MODEL: %s", provider, model)
 
     async with aiohttp.ClientSession(read_timeout=None) as session:
         async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
@@ -113,9 +115,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                 }
 
                 async for line in response.content:
-                    print('line: ', line)
                     decoded_line = line.decode('utf-8').strip()
-                    print('decoded_line: ', decoded_line)
                     try:
                         response_json = json.loads(decoded_line)
                         print('=========================')
@@ -143,7 +143,10 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                             # Проверка времени для редактирования сообщения
                             if current_time - last_edit_time >= 1:
                                 try:
-                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=temp_reply, parse_mode='Markdown')
+                                    # Экранирование текста перед отправкой
+                                    escaped_temp_reply = escape_markdown(
+                                        temp_reply)
+                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=escaped_temp_reply, parse_mode='MarkdownV2')
                                     last_edit_time = current_time
                                 except Exception as e:
                                     print(f"Error: {e}")
@@ -160,7 +163,8 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
 
                     bot_reply = temp_reply
                     # Финальное редактирование сообщения после завершения цикла
-                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{bot_reply} \n\n `Провайдер {provider}, модель {model}`", parse_mode='Markdown')
+                    escaped_bot_reply = escape_markdown(bot_reply)
+                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{escaped_bot_reply} \n\n `Провайдер {provider}, модель {model}`", parse_mode='MarkdownV2')
                     context.chat_data[context_history_key].append(
                         {"role": "assistant", "content": bot_reply})
                 except Exception as e:

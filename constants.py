@@ -12,8 +12,8 @@ api_base_url = getenv('API_BASE_URL')
 default_provider = providers[0]['provider']
 default_model = providers[0]['model']
 
-default_img_provider = img_providers[0]['provider']
-default_img_model = img_providers[0]['model']
+default_img_provider = img_providers['replsd3']['provider']
+default_img_model = img_providers['replsd3']['model']
 
 default_img_model_flow2 = 'midjourney'
 

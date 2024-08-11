@@ -4,10 +4,12 @@ import aiohttp
 import asyncio
 import random
 import json
+import re
 
 from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message
 from img_models import img_models
 from common import change_provider_data
+from providers import img_providers
 
 
 async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -34,7 +36,7 @@ def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return False
 
 
-async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE, provider: str = None):
+async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import constants
 
     is_admin = isAdmin(update, context)
@@ -43,9 +45,8 @@ async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE, provi
         await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("provider", constants.default_provider)}')
         return
 
-    provider = context.args[0] if context.args else (
-        provider if provider else None)
-    print('provider', provider)
+    provider = context.args[0] if context.args else None
+
     if provider:
         await change_provider_data(update=update, context=context, provider=provider)
 
@@ -220,29 +221,14 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
         print('inside DRAW mode change')
         print('==================')
         context.user_data['modetype'] = command
-
-        context.bot_data['provider'] = default_img_provider
-        context.bot_data['model'] = default_img_model
-
-        df_provider = default_img_provider
-        df_model = default_img_model
     if command == 'text':
         print('==================')
         print('inside TEXT mode change')
         print('==================')
         context.user_data['modetype'] = command
 
-        await change_provider_data(update=update, context=context,
-                                   provider=constants.default_provider, model=constants.default_model)
-
-        df_provider = constants.default_provider
-        df_model = constants.default_model
-
     if command == 'clear':
         clear_context(update=update, context=context)
-
-    if send_notifications == True:
-        await update.message.reply_text(text=f"Провайдер {df_provider} и модель {df_model} установлена")
 
 
 async def predict_user_message_context(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
@@ -356,11 +342,65 @@ async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_T
         print(f"Error: {e}")
 
 
-async def set_defimgm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def set_defimgm(update: Update, context: ContextTypes.DEFAULT_TYPE, key: str = ''):
     global default_img_provider, default_img_model
-    provider, model = context.args
 
-    default_img_provider = provider
-    default_img_model = model
+    is_admin = isAdmin(update, context)
 
-    await update.message.reply_text(text=f"Вы установили {default_img_provider} и {default_img_model} для генерации изображений по умолчанию.")
+    if is_admin == False:
+        await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("imgprovider", default_img_provider)}, текущая модель: {context.user_data.get("imgmodel", default_img_model)}')
+        return
+
+    print('context.args', context.args)
+
+    # Если аргументы не переданы, показываем кнопки с ключами
+    if (context.args != None and len(context.args) == 0 and key == ''):
+        # Создание кнопок для каждого ключа
+        buttons = [
+            [InlineKeyboardButton(key, callback_data=f'/defimgm {
+                                  key}') for key in img_providers]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("imgprovider", default_img_provider)}, текущая модель: {context.user_data.get("imgmodel", default_img_model)}')
+
+        await update.message.reply_text(text="Выберите ключ для установки imgprovider и imgmodel по умолчанию:", reply_markup=reply_markup)
+        return
+
+    # Проверка, существует ли ключ в словаре img_providers
+    if key in img_providers:
+        imgprovider = img_providers[key]["provider"]
+        imgmodel = img_providers[key]["model"]
+
+        # Сохранение значений в контексте и глобальных переменных
+        context.bot_data['imgprovider'] = imgprovider
+        context.bot_data['imgmodel'] = imgmodel
+
+        default_img_provider = imgprovider
+        default_img_model = imgmodel
+
+        # Определение, как был вызван обработчик (через сообщение или нажатие кнопки)
+        if update.message:
+            await update.message.reply_text(
+                text=f"Вы установили {default_img_provider} и {
+                    default_img_model} для генерации изображений по умолчанию."
+            )
+        elif update.callback_query:
+            await update.callback_query.message.reply_text(
+                text=f"Вы установили {default_img_provider} и {
+                    default_img_model} для генерации изображений по умолчанию."
+            )
+    else:
+        if update.message:
+            await update.message.reply_text(text=f"Ключ '{key}' не найден в списке доступных моделей.")
+        elif update.callback_query:
+            await update.callback_query.message.reply_text(text=f"Ключ '{key}' не найден в списке доступных моделей.")
+
+
+def escape_markdown(text: str) -> str:
+    """
+    Экранирует символы, которые могут вызвать проблемы при использовании Markdown.
+    """
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)

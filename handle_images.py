@@ -6,7 +6,7 @@ from telegram.constants import ChatAction
 from telegram import InputMediaPhoto
 import logging
 
-from constants import max_generate_images_count, default_model, default_provider
+from constants import max_generate_images_count, default_img_provider, default_img_model
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ async def fetch_and_send_images(session, image_links, chat_id, context, update, 
     temp_files = []
 
     current_provider = context.bot_data.get(
-        'provider', default_provider)
-    current_model = context.bot_data.get('model', default_model)
+        'imgprovider', default_img_provider)
+    current_model = context.bot_data.get('imgmodel', default_img_model)
 
     for image_link in image_links:
         full_image_url = f"{api_base_url}{image_link}"

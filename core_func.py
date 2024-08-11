@@ -6,24 +6,17 @@ from utils import get_models
 from constants import default_img_model_flow2, prompt_for_russian_AI_answer
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
-from utils import predict_user_message_context, translate_user_message
+from utils import predict_user_message_context, translate_user_message, show_main_menu, set_defimgm
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    reply_keyboard = [
-        [KeyboardButton('Рисовать')],
-        [KeyboardButton('Спросить')]
-    ]
-
-    reply_markup = ReplyKeyboardMarkup(
-        reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text('Привет! Готов ответить на твои вопросы.', reply_markup=reply_markup)
-    # await show_main_menu(update, context, {
-    #     "help": "Помощь",
-    #     "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
-    #     "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
-    # })
+    await update.message.reply_text('Привет! ')
+    await show_main_menu(update, context, {
+        "help": "Помощь",
+        "clear": "Очистить контекст чата (1-й поток, сейчас контекст 30 сообщений)",
+        # "mode": "Сменить режим работы бота (есть 2 мода 'draw' и 'text'). Например, /mode draw",
+    })
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -102,6 +95,7 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    print('query', query)
     await query.answer()
 
     command, name = query.data.split()
@@ -112,6 +106,8 @@ async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_T
         context.bot_data['provider'] = name
         await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
         await get_models(update, context, query.message.message_id)
+    if command == '/defimgm':
+        await set_defimgm(update, context, key=name)
 
 
 async def sex(update: Update, context: ContextTypes.DEFAULT_TYPE):
