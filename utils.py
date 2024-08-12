@@ -1,12 +1,12 @@
 from telegram import Update, BotCommand, MenuButtonCommands, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CallbackContext
 import aiohttp
 import asyncio
 import random
 import json
 import re
 
-from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message
+from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message, emoji_slots
 from img_models import img_models
 from common import change_provider_data
 from providers import img_providers
@@ -404,3 +404,34 @@ def escape_markdown(text: str) -> str:
     """
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
+
+
+def generate_slot_display(reels):
+    return "\n".join([" | ".join(row) for row in zip(*reels)])
+
+
+async def slot_machine(update: Update, context: CallbackContext) -> None:
+    message = await update.message.reply_text("🎰 Запуск слот-машины...")
+
+    # Изначальные позиции для каждого столбца
+    reels = [
+        [random.choice(emoji_slots) for _ in range(3)] for _ in range(3)
+    ]
+
+    for _ in range(15):  # Количество "вращений"
+        for reel in reels:
+            reel.pop(0)
+            reel.append(random.choice(emoji_slots))
+
+        slot_display = generate_slot_display(reels)
+        # Случайная задержка для более естественной анимации
+        await asyncio.sleep(random.uniform(0.1, 0.3))
+        await message.edit_text(f"🎰\n{slot_display}")
+
+    # Финальный результат
+    final_display = generate_slot_display(reels)
+    # Проверка, совпадают ли все элементы в центре
+    is_win = len(set(reel[1] for reel in reels)) == 1
+
+    await asyncio.sleep(0.5)
+    await message.edit_text(f"🎰\n{final_display}\n\n{'🎉 Вы выиграли!' if is_win else '😢 Попробуйте еще раз!'}")

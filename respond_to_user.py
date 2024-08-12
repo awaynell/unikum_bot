@@ -141,7 +141,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
 
                             current_time = time.time()
                             # Проверка времени для редактирования сообщения
-                            if current_time - last_edit_time >= 1:
+                            if current_time - last_edit_time >= 0.5:
                                 try:
                                     # Экранирование текста перед отправкой
                                     escaped_temp_reply = escape_markdown(
