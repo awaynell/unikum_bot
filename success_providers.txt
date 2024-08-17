@@ -1,0 +1,6 @@
+[
+    {
+        "provider": "Allyfy",
+        "model": "gpt-3.5-turbo"
+    }
+]

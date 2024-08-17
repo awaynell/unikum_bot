@@ -1,7 +1,10 @@
 from dotenv import load_dotenv
 from os import getenv
 
-from providers import providers, img_providers
+from providers import img_providers, load_successful_providers
+
+file_path = "success_providers.txt"
+successful_providers = load_successful_providers(file_path)
 
 load_dotenv()
 
@@ -9,8 +12,8 @@ admin_id = getenv('TG_ADMIN_ID')
 tg_bot_token = getenv('TG_BOT_TOKEN')
 api_base_url = getenv('API_BASE_URL')
 
-default_provider = providers[0]['provider']
-default_model = providers[0]['model']
+default_provider = successful_providers[0]['provider']
+default_model = successful_providers[0]['model']
 
 default_img_provider = img_providers['replsd3']['provider']
 default_img_model = img_providers['replsd3']['model']

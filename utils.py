@@ -435,3 +435,5 @@ async def slot_machine(update: Update, context: CallbackContext) -> None:
 
     await asyncio.sleep(0.5)
     await message.edit_text(f"🎰\n{final_display}\n\n{'🎉 Вы выиграли!' if is_win else '😢 Попробуйте еще раз!'}")
+
+
