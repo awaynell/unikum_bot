@@ -37,8 +37,12 @@ async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     is_admin = isAdmin(update, context)
 
+    current_provider = context.bot_data.get(
+        'provider', constants.default_provider)
+    current_model = context.bot_data.get('model', constants.default_model)
+
     if is_admin == False:
-        await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("provider", constants.default_provider)}')
+        await update.message.reply_text(f'Текущий провайдер: {current_provider}, модель по умолчанию: {current_model}')
         return
 
     provider = context.args[0] if context.args else None
@@ -66,9 +70,6 @@ async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     await update.message.reply_text("Произошла ошибка при получении списка моделей.")
     else:
-        current_provider = context.bot_data.get(
-            'provider', constants.default_provider)
-        current_model = context.bot_data.get('model', constants.default_model)
         await update.message.reply_text(f'Текущий провайдер: {current_provider}, модель по умолчанию: {current_model}')
 
 

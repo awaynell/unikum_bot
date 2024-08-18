@@ -85,7 +85,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
     }
 
     if (len(image_links) > 0):
-        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count} \n\n Твоё сообщение: {user_message}")
+        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count}")
 
     if (current_img_count > max_generate_images_count - 1):
         await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Еще немного...")
@@ -163,7 +163,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                     bot_reply = temp_reply
                     # Финальное редактирование сообщения после завершения цикла
                     escaped_bot_reply = escape_markdown(bot_reply)
-                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{escaped_bot_reply} \n\n `Провайдер {provider}, модель {model}`", parse_mode='MarkdownV2')
+                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{escaped_bot_reply}", parse_mode='MarkdownV2')
                     context.chat_data[context_history_key].append(
                         {"role": "assistant", "content": bot_reply})
                 except Exception as e:
