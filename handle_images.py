@@ -1,26 +1,23 @@
 import os
 import re
 import aiohttp
-import asyncio
 from telegram.constants import ChatAction
 from telegram import InputMediaPhoto
 import logging
 
-from constants import max_generate_images_count, default_img_provider, default_img_model
+from constants import default_img_provider, default_img_model
 
 logger = logging.getLogger(__name__)
 
 
-async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_message):
+async def handle_images(bot_reply, chat_id, context, update, api_base_url, user_message, sent_message):
     image_links = re.findall(r'\[!\[.*?\]\((.*?)\)\]', bot_reply)
 
-    print('image_links', image_links)
-
     async with aiohttp.ClientSession() as session:
-        await fetch_and_send_images(session, image_links, chat_id, context, update, api_base_url, user_message)
+        await fetch_and_send_images(session, image_links, chat_id, context, update, api_base_url, user_message, sent_message)
 
 
-async def fetch_and_send_images(session, image_links, chat_id, context, update, api_base_url, user_message):
+async def fetch_and_send_images(session, image_links, chat_id, context, update, api_base_url, user_message, sent_message):
     media_group = []
     temp_files = []
 
@@ -42,9 +39,12 @@ async def fetch_and_send_images(session, image_links, chat_id, context, update, 
                     logger.error(f"Ошибка при загрузке изображения: {
                                  img_response.status}")
                     await context.bot.send_message(chat_id=chat_id, text=f"Произошла ошибка при отправке изображения: {img_response.status}", reply_to_message_id=update.message.message_id)
+
         except Exception as e:
             logger.error(f"Ошибка при отправке изображения: {e}")
             await context.bot.send_message(chat_id=chat_id, text=f"Произошла ошибка при отправке изображения: {e}", reply_to_message_id=update.message.message_id)
+
+    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Последние штрихи...")
 
     for file_name in temp_files:
         try:
@@ -53,12 +53,15 @@ async def fetch_and_send_images(session, image_links, chat_id, context, update, 
         except Exception as e:
             logger.error(f"Ошибка при чтении файла: {e}")
 
-    if (len(media_group) > max_generate_images_count - 1):
-        await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-        await context.bot.send_media_group(parse_mode="Markdown", chat_id=chat_id, media=media_group, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n \n `via {current_provider} {current_model}`")
-        # Удаление файлов после отправки
-        for file_name in temp_files:
-            try:
-                os.remove(file_name)
-            except Exception as e:
-                logger.error(f"Ошибка при удалении файла: {e}")
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+
+    await context.bot.send_media_group(parse_mode="Markdown", chat_id=chat_id, media=media_group, reply_to_message_id=update.message.message_id, caption=f"Сгенерированные изображения по запросу: {user_message}\n \n `via {current_provider} {current_model}`")
+
+    await sent_message.delete()
+
+    # Удаление файлов после отправки
+    for file_name in temp_files:
+        try:
+            os.remove(file_name)
+        except Exception as e:
+            logger.error(f"Ошибка при удалении файла: {e}")

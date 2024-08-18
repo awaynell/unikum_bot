@@ -85,18 +85,18 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
     }
 
     if (len(image_links) > 0):
-        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count}")
+        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count} \n\n Твоё сообщение: {user_message}")
 
     if (current_img_count > max_generate_images_count - 1):
-        await handle_images(image_links, chat_id, context, update, api_base_url, user_message)
-        await sent_message.delete()
+        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Еще немного...")
+
+        await handle_images(image_links, chat_id, context, update, api_base_url, user_message, sent_message)
         return
 
     logger.info("CURRENT PROVIDER: %s, CURRENT MODEL: %s", provider, model)
 
     async with aiohttp.ClientSession(read_timeout=None) as session:
         async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
-            print('response.status', response.status)
             if response.status == 200:
                 # Отправка начального сообщения
                 last_edit_time = time.time()  # Время последнего редактирования
@@ -127,7 +127,6 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                             await autoreplace_provider(**autoreplace_provider_arguments)
                             return
                         elif response_json.get("type") == "content":
-                            print('content: ', response_json["content"])
                             temp_reply += response_json["content"]
 
                             # Обработка изображений

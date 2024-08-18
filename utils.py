@@ -23,12 +23,8 @@ async def clear_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def isAdmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = context._user_id
 
-    print('userID', user_id)
-
     if (user_id == None):
         return False
-
-    print('user_id: ', user_id, 'admin_id', admin_id)
 
     if (int(user_id) == int(admin_id)):
         return True
@@ -54,10 +50,8 @@ async def set_provider(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url) as response:
-                print('response', response)
                 if response.status == 200:
                     models = await response.json()
-                    print('models', models)
                     for model in models:
                         if model.get("default", False):
                             df_model = model.get("model")
@@ -88,7 +82,6 @@ async def set_model(update: Update, context: ContextTypes.DEFAULT_TYPE, isDefaul
         return
 
     model = context.args[0] if context.args else (model if model else None)
-    print('model', model)
 
     if model:
         change_provider_data(update=update, context=context, model=model)
@@ -217,14 +210,8 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
     command = mode or context.args[0]
 
     if command == 'draw':
-        print('==================')
-        print('inside DRAW mode change')
-        print('==================')
         context.user_data['modetype'] = command
     if command == 'text':
-        print('==================')
-        print('inside TEXT mode change')
-        print('==================')
         context.user_data['modetype'] = command
 
     if command == 'clear':
@@ -233,8 +220,6 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
 
 async def predict_user_message_context(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
     predict_message = await context.bot.send_message(chat_id=chat_id, text="Определяю контекст сообщения...", reply_to_message_id=message_id)
-
-    print('Внутри predict_user_message_context', user_message)
 
     loop = asyncio.get_event_loop()
 
@@ -249,8 +234,6 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
         "id": random.random()
     }
 
-    print('API data', f"api_url: {api_url}, payload: {payload}")
-
     temp_reply = ''
     predict_model_reply = ''
     # значение по умолчанию
@@ -261,24 +244,20 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
         async with aiohttp.ClientSession(read_timeout=None) as session:
             async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
                 if response.status == 200:
-                    print('response.status == 200')
                     async for line in response.content:
                         decoded_line = line.decode('utf-8').strip()
                         response_json = json.loads(decoded_line)
-                        print('predict_response_json', response_json)
                         if (response_json.get("type") == "provider"):
-                            print('predict_response_json.get("type") == "provider"')
                             continue
                         if response_json.get("type") == "content":
-                            print('predict: ', response_json["content"])
                             temp_reply += response_json["content"]
 
                     # text. draw. clear.
                     predict_model_reply = temp_reply.lower()
 
-                    print('=======================================')
-                    print('predict_model_reply: ', predict_model_reply)
-                    print('=======================================')
+                    # print('=======================================')
+                    # print('predict_model_reply: ', predict_model_reply)
+                    # print('=======================================')
 
                     text_rules = ['text', 'текст']
                     draw_rules = ['draw', 'рисовать', 'отрисовать', 'нарисуй']
@@ -330,9 +309,7 @@ async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_T
                         if (response_json.get("type") == "provider"):
                             continue
                         if response_json.get("type") == "content":
-                            print('predict: ', response_json["content"])
                             temp_reply += response_json["content"]
-                    print(f"Перевод: {temp_reply}")
                     return temp_reply
 
                 else:
@@ -350,8 +327,6 @@ async def set_defimgm(update: Update, context: ContextTypes.DEFAULT_TYPE, key: s
     if is_admin == False:
         await update.message.reply_text(f'Текущий провайдер: {context.user_data.get("imgprovider", default_img_provider)}, текущая модель: {context.user_data.get("imgmodel", default_img_model)}')
         return
-
-    print('context.args', context.args)
 
     # Если аргументы не переданы, показываем кнопки с ключами
     if (context.args != None and len(context.args) == 0 and key == ''):
@@ -435,5 +410,3 @@ async def slot_machine(update: Update, context: CallbackContext) -> None:
 
     await asyncio.sleep(0.5)
     await message.edit_text(f"🎰\n{final_display}\n\n{'🎉 Вы выиграли!' if is_win else '😢 Попробуйте еще раз!'}")
-
-

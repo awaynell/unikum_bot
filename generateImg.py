@@ -80,8 +80,6 @@ def generateImg(prompt):
         base64_image = driver.execute_async_script(script, blob_url)
         image_urls.append(base64_image)
 
-    print('image_urls', image_urls)
-
     # Закрываем браузер
     driver.quit()
 

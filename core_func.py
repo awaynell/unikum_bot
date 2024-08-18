@@ -80,8 +80,6 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             image_path = path['image']
 
-            print('image_path', image_path)
-
             with open(image_path, 'rb') as photo:
                 media.append(InputMediaPhoto(media=photo))
 
