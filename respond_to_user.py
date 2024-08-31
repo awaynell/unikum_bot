@@ -124,6 +124,9 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
 
                         # handle error
                         if (response_json.get("type") == "error"):
+                            if (modetype == "draw"):
+                                await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Ошибка: {response_json["error"]}")
+                                return
                             await autoreplace_provider(**autoreplace_provider_arguments)
                             return
                         elif response_json.get("type") == "content":

@@ -45,6 +45,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode_type = context.user_data["modetype"]
     if mode_type == 'draw':
         translated_user_message = await translate_user_message(update, context, user_message, chat_id, message_id)
+
     result_message = translated_user_message if mode_type == 'draw' else ru_user_message
 
     # Проверка типа чата: личный или групповой

@@ -1,41 +1,65 @@
-import requests
+import aiohttp
+import asyncio
 import uuid
-import time
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 from telegram import Update
 from telegram.ext import ContextTypes
+import time
 
 from utils import api_base_url, isAdmin
 from common import change_provider_data
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 # URL для запросов
 base_url = f"{api_base_url}/backend-api/v2"
 
 # Файл для сохранения успешных провайдеров
 output_file = "success_providers.txt"
 
-# Функция для получения списка провайдеров
+
+class RateLimiter:
+    def __init__(self, max_rate):
+        self.max_rate = max_rate
+        self.tokens = max_rate
+        self.last_refill = time.perf_counter()
+
+    async def wait_for_token(self):
+        while self.tokens < 1:
+            self.refill_tokens()
+            await asyncio.sleep(0.1)
+        self.tokens -= 1
+
+    def refill_tokens(self):
+        now = time.perf_counter()
+        elapsed_time = now - self.last_refill
+        self.tokens = min(self.max_rate, self.tokens +
+                          elapsed_time * self.max_rate)
+        self.last_refill = now
 
 
-def get_providers():
+# Создание ограничителя скорости с максимумом 10 запросов в секунду
+rate_limiter = RateLimiter(max_rate=10)
+
+
+async def get_providers(session):
     url = f"{base_url}/providers"
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
-
-# Функция для получения списка моделей у конкретного провайдера
+    async with session.get(url) as response:
+        response.raise_for_status()
+        return await response.json()
 
 
-def get_models(provider):
+async def get_models(session, provider):
     url = f"{base_url}/models/{provider}"
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
-
-# Функция для отправки запроса к модели
+    async with session.get(url) as response:
+        response.raise_for_status()
+        return await response.json()
 
 
-def send_request_to_model(provider, model):
+async def send_request_to_model(session, provider, model):
     conversation_id = str(uuid.uuid4())
     request_id = str(uuid.uuid4())
 
@@ -52,19 +76,18 @@ def send_request_to_model(provider, model):
     }
 
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, json=body, headers=headers, stream=True)
-
-    # Парсинг EventStream
-    for line in response.iter_lines():
-        if line:
-            decoded_line = line.decode('utf-8')
-            if "error" in decoded_line:
-                return False, provider, model
-            if "content" in decoded_line:
-                return True, provider, model
+    try:
+        async with session.post(url, json=body, headers=headers, timeout=10) as response:
+            async for line in response.content:
+                decoded_line = line.decode('utf-8')
+                if "error" in decoded_line:
+                    return False, provider, model
+                if "content" in decoded_line:
+                    return True, provider, model
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout error occurred while checking model {
+                      model} of provider {provider}")
     return False, provider, model
-
-# Функция сортировки провайдеров по модели
 
 
 def sort_providers(providers):
@@ -80,67 +103,61 @@ def sort_providers(providers):
             return 4
     return sorted(providers, key=sort_key)
 
-# Основная функция
-
 
 async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if (not isAdmin(update, context)):
+    if not isAdmin(update, context):
         await update.message.reply_text(text="Nah, you're not admin")
         return
 
     await update.message.reply_text(text="Смотрю какие провайдеры доступны...")
 
-    providers = get_providers()
-    successful_providers = []
+    async with aiohttp.ClientSession() as session:
+        # Использование ограничителя скорости перед выполнением запросов
+        await rate_limiter.wait_for_token()
+        providers = await get_providers(session)
 
-    try:
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
+        successful_providers = []
 
-            for provider, provider_value in providers.items():
-                if 'webdriver' in provider_value.lower() or 'ddg' in provider_value.lower():
-                    continue
-                try:
-                    print(f"Checking provider: {provider} {provider_value}")
-                    models = get_models(provider)
-                    for model_info in models:
-                        model = model_info['model']
-                        print(f"Testing model: {model}")
-                        # Добавляем задачу в пул потоков
-                        futures.append(executor.submit(
-                            send_request_to_model, provider, model))
-                except Exception as e:
-                    print(f"Error with provider {provider}: {e}")
+        tasks = []
+        for provider_name, provider_info in providers.items():
+            if any(keyword in provider_info.lower() for keyword in ('webdriver', 'ddg', 'auth')):
+                continue
+            try:
+                logging.info(f"Checking provider {provider_name}...")
+                models = await get_models(session, provider_name)
+                for model_data in models:
+                    model = model_data['model']
 
-            # Обработка завершенных задач
-            for future in as_completed(futures):
-                success, provider, model = future.result()
-                if success:
-                    successful_providers.append(
-                        {"provider": provider, "model": model})
-                    time.sleep(1)  # Задержка перед следующим запросом
+                    logging.info(f"Checking model {model}...")
 
-            # Сортировка успешных провайдеров по приоритету моделей
-            sorted_providers = sort_providers(successful_providers)
+                    tasks.append(send_request_to_model(
+                        session, provider_name, model))
+            except Exception as e:
+                logging.error(f"Error with provider {provider_name}: {e}")
 
-            # Сохранение результатов в файл
-            with open(output_file, 'w', encoding='utf-8') as file:
-                json.dump(sorted_providers, file, ensure_ascii=False, indent=4)
+        results = await asyncio.gather(*tasks)
 
-            # Отображение успешных провайдеров и моделей целым списком в одном сообщении
-            message = "Успешные провайдеры и модели:\n"
-            for ent in sorted_providers:
-                message += f"Провайдер: {ent['provider']
-                                          }, модель: {ent['model']}\n"
+        for success, provider, model in results:
+            if success:
+                successful_providers.append(
+                    {"provider": provider, "model": model})
 
-            await update.message.reply_text(text=message)
+        available_providers = sort_providers(successful_providers)
 
-            print(f"Successful providers and models saved to {output_file}")
+        with open(output_file, 'w', encoding='utf-8') as file:
+            json.dump(available_providers, file, ensure_ascii=False, indent=4)
 
-            await change_provider_data(update=update, context=context, provider=sorted_providers[0]['provider'], model=sorted_providers[0]['model'], withNotificationMsg=True)
-    except Exception as e:
-        await update.message.reply_text(
-            text=f"Ошибка! {e}")
+        message = "Успешные провайдеры и модели:\n"
+        for provider_info in available_providers:
+            message += f"Провайдер: {provider_info['provider']
+                                     }, модель: {provider_info['model']}\n"
+
+        await update.message.reply_text(text=message)
+
+        if available_providers:
+            await change_provider_data(update=update, context=context, provider=available_providers[0]['provider'], model=available_providers[0]['model'], withNotificationMsg=True)
+        else:
+            await update.message.reply_text(text="Не удалось найти успешные модели.")
 
 if __name__ == "__main__":
-    check_providers()
+    asyncio.run(check_providers())

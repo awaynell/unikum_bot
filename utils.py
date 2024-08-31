@@ -226,8 +226,8 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": "gpt-3.5-turbo",
-        "provider": "Pizzagpt",
+        "model": "llama-3-70b-instruct",
+        "provider": "TeachAnything",
         "messages": [{"role": "user", "content": f"{prompt_predict} {user_message}"}],
         "temperature": 0.1,
         "auto_continue": False,
@@ -288,8 +288,8 @@ async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_T
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": 'Blackbox',
-        "provider": "Blackbox",
+        "model": 'gpt-4o-mini',
+        "provider": "Pizzagpt",
         "messages": [{"role": "user", "content": f"{prompt_for_translate_message} {user_message}"}],
         "temperature": 0.1,
         "auto_continue": False,
