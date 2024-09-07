@@ -42,7 +42,7 @@ class RateLimiter:
 
 
 # Создание ограничителя скорости с максимумом 10 запросов в секунду
-rate_limiter = RateLimiter(max_rate=10)
+rate_limiter = RateLimiter(max_rate=4)
 
 
 async def get_providers(session):
