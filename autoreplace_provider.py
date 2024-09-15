@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 import providers
+from constants import successful_providers
 from logger import logger
 from common import change_provider_data
 
@@ -12,8 +13,8 @@ async def autoreplace_provider(temp_reply, chat_id, message_id, dialog_history, 
     providers.increment_retry_count()
 
     if providers.current_retry_count < providers.max_retry_count:
-        new_provider = providers.providers[providers.current_retry_count %
-                                           len(providers.providers)] if modetype == 'text' else providers.img_providers[providers.current_retry_count % len(providers.img_providers)]
+        new_provider = successful_providers[providers.current_retry_count %
+                                            len(successful_providers)] if modetype == 'text' else providers.img_providers[providers.current_retry_count % len(providers.img_providers)]
 
         logger.info(f"NEW PROVIDER {new_provider}")
 

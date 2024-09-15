@@ -136,6 +136,8 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                             if "\n<!-- generated images start" in temp_reply:
                                 image_links = temp_reply
 
+                                await asyncio.sleep(1.5)
+
                                 await handle_model_response(temp_reply=temp_reply, chat_id=chat_id, context=context, update=update, user_message=user_message, sent_message=sent_message, context_history_key=context_history_key, current_img_count=current_img_count + 1,
                                                             dialog_history=dialog_history,
                                                             message_id=message_id, image_links=image_links)

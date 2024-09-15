@@ -21,28 +21,8 @@ base_url = f"{api_base_url}/backend-api/v2"
 output_file = "success_providers.txt"
 
 
-class RateLimiter:
-    def __init__(self, max_rate):
-        self.max_rate = max_rate
-        self.tokens = max_rate
-        self.last_refill = time.perf_counter()
-
-    async def wait_for_token(self):
-        while self.tokens < 1:
-            self.refill_tokens()
-            await asyncio.sleep(0.1)
-        self.tokens -= 1
-
-    def refill_tokens(self):
-        now = time.perf_counter()
-        elapsed_time = now - self.last_refill
-        self.tokens = min(self.max_rate, self.tokens +
-                          elapsed_time * self.max_rate)
-        self.last_refill = now
-
-
-# Создание ограничителя скорости с максимумом 10 запросов в секунду
-rate_limiter = RateLimiter(max_rate=4)
+# Семафор для ограничения количества одновременных запросов
+semaphore = asyncio.Semaphore(2)
 
 
 async def get_providers(session):
@@ -60,34 +40,41 @@ async def get_models(session, provider):
 
 
 async def send_request_to_model(session, provider, model):
-    conversation_id = str(uuid.uuid4())
-    request_id = str(uuid.uuid4())
+    await asyncio.sleep(1)
 
-    url = f"{base_url}/conversation"
-    body = {
-        "id": request_id,
-        "conversation_id": conversation_id,
-        "model": model,
-        "web_search": False,
-        "provider": provider,
-        "messages": [{"role": "user", "content": "ping"}],
-        "auto_continue": True,
-        "api_key": None
-    }
+    async with semaphore:
+        conversation_id = str(uuid.uuid4())
+        request_id = str(uuid.uuid4())
 
-    headers = {"Content-Type": "application/json"}
-    try:
-        async with session.post(url, json=body, headers=headers, timeout=10) as response:
-            async for line in response.content:
-                decoded_line = line.decode('utf-8')
-                if "error" in decoded_line:
-                    return False, provider, model
-                if "content" in decoded_line:
-                    return True, provider, model
-    except asyncio.TimeoutError:
-        logging.error(f"Timeout error occurred while checking model {
-                      model} of provider {provider}")
-    return False, provider, model
+        url = f"{base_url}/conversation"
+        body = {
+            "id": request_id,
+            "conversation_id": conversation_id,
+            "model": model,
+            "web_search": False,
+            "provider": provider,
+            "messages": [{"role": "user", "content": "ping"}],
+            "auto_continue": True,
+            "api_key": None
+        }
+
+        headers = {"Content-Type": "application/json"}
+        try:
+            async with session.post(url, json=body, headers=headers, timeout=10) as response:
+                async for line in response.content:
+                    decoded_line = line.decode('utf-8')
+                    if "error" in decoded_line:
+                        return False, provider, model
+                    if "content" in decoded_line:
+                        return True, provider, model
+        except asyncio.TimeoutError:
+            logging.error(f"Timeout error occurred while checking model {
+                          model} of provider {provider}")
+        except aiohttp.ClientConnectorError as e:
+            logging.error(f"Connection error: {e}")
+        except OSError as e:
+            logging.error(f"OS error: {e}")
+        return False, provider, model
 
 
 def sort_providers(providers):
@@ -112,8 +99,6 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text="Смотрю какие провайдеры доступны...")
 
     async with aiohttp.ClientSession() as session:
-        # Использование ограничителя скорости перед выполнением запросов
-        await rate_limiter.wait_for_token()
         providers = await get_providers(session)
 
         successful_providers = []

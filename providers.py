@@ -1,6 +1,26 @@
 import json
 
 img_providers = {
+    "flux": {
+        "provider": "FluxAirforce",
+        "model": "flux"
+    },
+    "flux_realism": {
+        "provider": "FluxAirforce",
+        "model": "flux-realism"
+    },
+    "flux_anime": {
+        "provider": "FluxAirforce",
+        "model": "flux-anime"
+    },
+    "flux_3d": {
+        "provider": "FluxAirforce",
+        "model": "flux-3d"
+    },
+    "flux_disney": {
+        "provider": "FluxAirforce",
+        "model": "flux-disney"
+    },
     "replsd3": {
         "provider": "ReplicateHome",
         "model": "stability-ai/stable-diffusion-3",

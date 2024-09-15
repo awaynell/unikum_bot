@@ -331,10 +331,12 @@ async def set_defimgm(update: Update, context: ContextTypes.DEFAULT_TYPE, key: s
 
     # Если аргументы не переданы, показываем кнопки с ключами
     if (context.args != None and len(context.args) == 0 and key == ''):
-        # Создание кнопок для каждого ключа
+        # Получаем ключи из словаря и формируем кнопки по 2 в ряд
+        keys = list(img_providers.keys())
         buttons = [
-            [InlineKeyboardButton(key, callback_data=f'/defimgm {
-                                  key}') for key in img_providers]
+            [InlineKeyboardButton(
+                k, callback_data=f'/defimgm {k}') for k in keys[i:i+2]]
+            for i in range(0, len(keys), 2)
         ]
 
         reply_markup = InlineKeyboardMarkup(buttons)
