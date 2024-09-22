@@ -105,7 +105,7 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         tasks = []
         for provider_name, provider_info in providers.items():
-            if any(keyword in provider_info.lower() for keyword in ('webdriver', 'ddg', 'auth')):
+            if any(keyword in provider_info.lower() for keyword in ('webdriver', 'ddg', 'auth', 'airforce')):
                 continue
             try:
                 logging.info(f"Checking provider {provider_name}...")
