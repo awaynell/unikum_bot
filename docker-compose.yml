@@ -11,3 +11,4 @@ services:
     volumes:
       - .:/app # Монтируем текущую директорию в /app контейнера
     command: ["python", "bot.py"] # Запуск команды, как указано в Dockerfile
+    restart: always
