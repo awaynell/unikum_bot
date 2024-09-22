@@ -2,24 +2,28 @@ import json
 
 img_providers = {
     "flux": {
-        "provider": "FluxAirforce",
+        "provider": "Airforce",
         "model": "flux"
     },
     "flux_realism": {
-        "provider": "FluxAirforce",
+        "provider": "Airforce",
         "model": "flux-realism"
     },
     "flux_anime": {
-        "provider": "FluxAirforce",
+        "provider": "Airforce",
         "model": "flux-anime"
     },
     "flux_3d": {
-        "provider": "FluxAirforce",
+        "provider": "Airforce",
         "model": "flux-3d"
     },
     "flux_disney": {
-        "provider": "FluxAirforce",
+        "provider": "Airforce",
         "model": "flux-disney"
+    },
+    "flux_pixel": {
+        "provider": "Airforce",
+        "model": "flux-pixel"
     },
     "replsd3": {
         "provider": "ReplicateHome",
