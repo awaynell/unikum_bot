@@ -143,6 +143,13 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                                                             message_id=message_id, image_links=image_links)
                                 break
 
+                            if "One message exceeds the 1000chars per message limit" in temp_reply:
+                                if (modetype == "draw"):
+                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Ошибка: {response_json["error"]}")
+                                    return
+                                await autoreplace_provider(**autoreplace_provider_arguments)
+                                return
+
                             current_time = time.time()
                             # Проверка времени для редактирования сообщения
                             if current_time - last_edit_time >= 0.5:
