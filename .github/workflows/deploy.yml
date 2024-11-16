@@ -8,29 +8,28 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      # 1. Удаляем папку проекта, если она существует
       - name: Remove existing project directory
         run: |
           if [ -d "$HOME/unikum_bot" ]; then
             rm -rf $HOME/unikum_bot
           fi
 
-      # 2. Клонируем свежую версию репозитория
       - name: Clone repository
         run: |
           git clone https://github.com/awaynell/unikum_bot.git $HOME/unikum_bot
 
-      # 3. Останавливаем старые контейнеры (если они существуют)
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > $HOME/unikum_bot/.env
+
       - name: Stop and remove containers, networks
         run: |
           cd $HOME/unikum_bot
           docker-compose down || true # Игнорируем ошибку, если контейнеров нет
 
-      # 4. Удаляем ненужные данные Docker
       - name: Remove unused data
         run: docker system prune -a -f
 
-      # 5. Поднимаем новые контейнеры
       - name: Start docker-compose
         run: |
           cd $HOME/unikum_bot
