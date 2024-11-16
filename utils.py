@@ -6,7 +6,7 @@ import random
 import json
 import re
 
-from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message, emoji_slots
+from constants import admin_id, api_base_url, default_img_model, default_img_provider, prompt_predict, prompt_for_translate_message, emoji_slots, default_model, default_provider
 from img_models import img_models
 from common import change_provider_data
 from providers import img_providers
@@ -222,12 +222,16 @@ async def set_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
 async def predict_user_message_context(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
     predict_message = await context.bot.send_message(chat_id=chat_id, text="Определяю контекст сообщения...", reply_to_message_id=message_id)
 
+    _provider = context.bot_data.get(
+        'provider', default_provider)
+    _model = context.bot_data.get('model', default_model)
+
     loop = asyncio.get_event_loop()
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": "chat-gemini-flash",
-        "provider": "GizAI",
+        "model": _model,
+        "provider": _provider,
         "messages": [{"role": "user", "content": f"{prompt_predict} {user_message}"}],
         "temperature": 0.1,
         "auto_continue": False,
@@ -284,12 +288,16 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
 
 
 async def translate_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE, user_message, chat_id, message_id):
+    _provider = context.bot_data.get(
+        'provider', default_provider)
+    _model = context.bot_data.get('model', default_model)
+
     loop = asyncio.get_event_loop()
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
     payload = {
-        "model": 'gpt-4o-mini',
-        "provider": "Pizzagpt",
+        "model": _model,
+        "provider": _provider,
         "messages": [{"role": "user", "content": f"{prompt_for_translate_message} {user_message}"}],
         "temperature": 0.1,
         "auto_continue": False,
