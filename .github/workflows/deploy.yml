@@ -8,6 +8,14 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
+      - name: Stop and remove containers, networks
+        run: |
+          cd $HOME/unikum_bot
+          docker-compose down || true # Игнорируем ошибку, если контейнеров нет
+
+      - name: Remove unused data
+        run: docker system prune -a -f
+
       - name: Remove existing project directory
         run: |
           if [ -d "$HOME/unikum_bot" ]; then
