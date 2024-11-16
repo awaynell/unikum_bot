@@ -22,7 +22,7 @@ COPY . .
 # Устанавливаем зависимости Python в виртуальной среде
 # RUN python3 -m venv /opt/venv
 # ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Запускаем бота
 CMD ["python", "bot.py"]
