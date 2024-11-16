@@ -5,18 +5,37 @@ on:
     branches: ["main"]
 
 jobs:
-  prepare-environment:
-    runs-on: self-hosted
-    steps:
-      - name: Stop and remove containers, networks
-        run: docker-compose down
-      - name: Remove unused data
-        run: docker system prune -a -f
   deploy:
     runs-on: self-hosted
-    needs: prepare-environment
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v3
-      - name: docker-compose
-        run: docker-compose up -d
+      # 1. Удаляем папку проекта, если она существует
+      - name: Remove existing project directory
+        run: |
+          if [ -d "/unikum_bot" ]; then
+            rm -rf /unikum_bot
+          fi
+
+      # 2. Клонируем свежую версию репозитория
+      - name: Clone repository
+        run: |
+          git clone https://github.com/awaynell/unikum_bot.git /unikum_bot
+
+      # 3. Перемещаемся в директорию проекта
+      - name: Change directory to project root
+        run: cd /unikum_bot
+
+      # 4. Останавливаем старые контейнеры (если они существуют)
+      - name: Stop and remove containers, networks
+        run: |
+          cd /unikum_bot
+          docker-compose down || true # Игнорируем ошибку, если контейнеров нет
+
+      # 5. Удаляем ненужные данные Docker
+      - name: Remove unused data
+        run: docker system prune -a -f
+
+      # 6. Поднимаем новые контейнеры
+      - name: Start docker-compose
+        run: |
+          cd /unikum_bot
+          docker-compose up -d
