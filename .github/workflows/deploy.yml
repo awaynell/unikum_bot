@@ -19,7 +19,7 @@ jobs:
       - name: Remove existing project directory
         run: |
           if [ -d "$HOME/unikum_bot" ]; then
-            rm -rf $HOME/unikum_bot
+            sudo rm -rf /home/user/unikum_bot
           fi
 
       - name: Clone repository
