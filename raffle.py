@@ -34,6 +34,9 @@ class RaffleManager:
             return []
         return random.sample(self.array, min(limit, len(self.array)))
 
+    def clear_raffle(self):
+        self.array = []
+
 
 raffle_manager = RaffleManager()
 
@@ -51,7 +54,7 @@ async def raffle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     result = "\n".join(
-        [f"{i+1}. {winner['name']} (ID: {winner['id']})" for i, winner in enumerate(winners)])
+        [f"{i+1}. {winner['name']} (Место: {winner['id']})" for i, winner in enumerate(winners)])
     await update.message.reply_text(f"Победители:\n{result}")
 
 
@@ -61,6 +64,22 @@ async def add_raffle_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     name = " ".join(context.args)
-    user_id = update.effective_user.id
-    res = raffle_manager.add_item(name, user_id)
-    await update.message.reply_text(f"Добавлено: {name} (от {user_id})" if res == 1 else res)
+    username = update.effective_user.username
+    res = raffle_manager.add_item(name, username)
+    await update.message.reply_text(f"Добавлено: {name} (от {username})" if res == 1 else res)
+
+
+async def change_raffle_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args or len(context.args) < 1:
+        await update.message.reply_text("Использование: /change_limit_raffle <предел>")
+        return
+
+    new_limit = int(context.args[0])
+    raffle_manager.set_limit(new_limit)
+    await update.message.reply_text(f"Предел массива изменён на {new_limit}")
+    raffle_manager.clear_raffle()
+
+
+async def clear_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    raffle_manager.clear_raffle()
+    await update.message.reply_text("Розыгрыш очищен.")
