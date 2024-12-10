@@ -18,7 +18,7 @@ class RaffleManager:
 
         new_item = {"id": id, "name": name}
         self.array.append(new_item)
-        return f"Элемент добавлен: {new_item}"
+        return 1
 
     def get_array(self):
         return self.array
@@ -32,7 +32,7 @@ class RaffleManager:
     def get_winners(self, limit):
         if not self.array:
             return []
-        return random.sample(self.raffle_entries, min(limit, len(self.array)))
+        return random.sample(self.array, min(limit, len(self.array)))
 
 
 raffle_manager = RaffleManager()
@@ -60,7 +60,7 @@ async def add_raffle_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Использование: /choose_item_raffle <номер>")
         return
 
-    name = " ".join(context.args)  # Имя может быть из нескольких слов
+    name = " ".join(context.args)
     user_id = update.effective_user.id
-    raffle_manager.add_item(name, user_id)
-    await update.message.reply_text(f"Добавлено: {name} (от {user_id})")
+    res = raffle_manager.add_item(name, user_id)
+    await update.message.reply_text(f"Добавлено: {name} (от {user_id})" if res == 1 else res)
