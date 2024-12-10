@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 
 class RaffleManager:
-    def __init__(self, limit=10):
+    def __init__(self, limit=4):
         self.array = []
         self.limit = limit
 
@@ -30,9 +30,9 @@ class RaffleManager:
         print(f"Предел массива изменён на {new_limit}")
 
     def get_winners(self, limit):
-        if not self.raffle_entries:
+        if not self.array:
             return []
-        return random.sample(self.raffle_entries, min(limit, len(self.raffle_entries)))
+        return random.sample(self.raffle_entries, min(limit, len(self.array)))
 
 
 raffle_manager = RaffleManager()
@@ -62,5 +62,5 @@ async def add_raffle_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     name = " ".join(context.args)  # Имя может быть из нескольких слов
     user_id = update.effective_user.id
-    raffle_manager.add_item(user_id, name)
+    raffle_manager.add_item(name, user_id)
     await update.message.reply_text(f"Добавлено: {name} (от {user_id})")
