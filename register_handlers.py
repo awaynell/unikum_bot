@@ -3,7 +3,7 @@ from telegram.ext import CommandHandler, MessageHandler, filters, CallbackQueryH
 from utils import get_providers, clear_context, get_models, set_model, set_provider, set_img_model, send_img_models, send_help, set_defimgm, slot_machine
 from core_func import start, draw, sex, handle_message, handle_model_selection
 from check_providers import check_providers
-from raffle import add_raffle_item, raffle, change_raffle_limit, clear_raffle
+from raffle import add_raffle_item, raffle, change_raffle_limit, clear_raffle, get_raffle_array
 
 
 def register_handlers(application):
@@ -25,6 +25,9 @@ def register_handlers(application):
     application.add_handler(CommandHandler(
         "choose_item_raffle", add_raffle_item))
     application.add_handler(CommandHandler("raffle", raffle))
+    application.add_handler(CommandHandler(
+        "get_raffle_array", get_raffle_array
+    ))
     application.add_handler(CommandHandler(
         'change_limit_raffle', change_raffle_limit))
     application.add_handler(CommandHandler(
