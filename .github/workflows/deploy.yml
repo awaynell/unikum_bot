@@ -36,4 +36,4 @@ jobs:
       - name: Start docker-compose
         run: |
           cd $HOME/unikum_bot
-          docker-compose up -d
+          docker-compose up -d --build
