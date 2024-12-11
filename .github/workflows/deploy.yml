@@ -31,7 +31,6 @@ jobs:
           echo "TG_BOT_TOKEN=${{ secrets.TG_BOT_TOKEN }}" >> /home/user/unikum_bot/.env
           echo "TG_ADMIN_ID=${{ secrets.TG_ADMIN_ID }}" >> /home/user/unikum_bot/.env
           echo "API_BASE_URL=${{ secrets.API_BASE_URL }}" >> /home/user/unikum_bot/.env
-          echo "CHROMEDRIVER_PATH=${{ secrets.CHROMEDRIVER_PATH }}" >> /home/user/unikum_bot/.env
 
       - name: Start docker-compose
         run: |
