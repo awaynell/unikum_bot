@@ -10,17 +10,14 @@ jobs:
     steps:
       - name: Stop and remove containers, networks
         run: |
-          cd $HOME/unikum_bot
-          docker-compose down || true # Игнорируем ошибку, если контейнеров нет
+          if [ -d "$HOME/unikum_bot" ]; then
+            cd $HOME/unikum_bot
+            docker-compose down || true # Игнорируем ошибку, если контейнеров нет
+            sudo rm -rf $HOME/unikum_bot
+          fi
 
       - name: Remove unused data
         run: docker system prune -a -f
-
-      - name: Remove existing project directory
-        run: |
-          if [ -d "$HOME/unikum_bot" ]; then
-            sudo rm -rf /home/user/unikum_bot
-          fi
 
       - name: Clone repository
         run: |
