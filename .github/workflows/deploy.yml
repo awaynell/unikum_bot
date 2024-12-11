@@ -13,7 +13,7 @@ jobs:
           if [ -d "$HOME/unikum_bot" ]; then
             cd $HOME/unikum_bot
             docker-compose down || true # Игнорируем ошибку, если контейнеров нет
-            sudo rm -rf $HOME/unikum_bot
+            rm -rf $HOME/unikum_bot
           fi
 
       - name: Remove unused data
