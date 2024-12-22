@@ -100,8 +100,6 @@ async def getImgFromAPI(prompt, update, context, model_key="imagineo"):
         params = model["params"].copy()
         params["prompt"] = prompt
 
-        print('params', params)
-
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, lambda: client.predict(**params))
 

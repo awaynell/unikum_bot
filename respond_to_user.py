@@ -118,9 +118,6 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                     decoded_line = line.decode('utf-8').strip()
                     try:
                         response_json = json.loads(decoded_line)
-                        print('=========================')
-                        print(response_json)
-                        print('=========================')
 
                         # handle error
                         if (response_json.get("type") == "error"):

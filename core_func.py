@@ -94,7 +94,6 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    print('query', query)
     await query.answer()
 
     command, name = query.data.split()

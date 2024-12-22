@@ -182,8 +182,8 @@ async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with session.get(api_url) as response:
             if response.status == 200:
                 providers = await response.json()
-                available_providers = [key for key, value in providers.items(
-                ) if 'Auth' not in value and 'WebDriver' not in value]
+                available_providers = [
+                    provider['name'] for provider in providers if not provider['auth'] and not provider['webdriver']]
 
                 buttons = [
                     [InlineKeyboardButton(
@@ -259,10 +259,6 @@ async def predict_user_message_context(update: Update, context: ContextTypes.DEF
 
                     # text. draw. clear.
                     predict_model_reply = temp_reply.lower()
-
-                    # print('=======================================')
-                    # print('predict_model_reply: ', predict_model_reply)
-                    # print('=======================================')
 
                     text_rules = ['text', 'текст']
                     draw_rules = ['draw', 'рисовать', 'отрисовать', 'нарисуй']
