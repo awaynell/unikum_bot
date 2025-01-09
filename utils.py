@@ -183,7 +183,7 @@ async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if response.status == 200:
                 providers = await response.json()
                 available_providers = [
-                    provider['name'] for provider in providers if not provider['auth'] and not provider['webdriver']]
+                    provider['name'] for provider in providers if not provider['auth']]
 
                 buttons = [
                     [InlineKeyboardButton(
