@@ -22,7 +22,17 @@ base_url = f"{api_base_url}/backend-api/v2"
 output_file = "success_providers.txt"
 
 # Семафор для ограничения количества одновременных запросов
-semaphore = asyncio.Semaphore(2)
+# Уменьшим конкурентность: теперь только по одному запросу одновременно
+semaphore = asyncio.Semaphore(1)
+
+# Максимальное количество моделей на провайдера, которое будем проверять
+MAX_MODELS_PER_PROVIDER = 3
+
+# Максимальное количество провайдеров, которое будем проверять
+MAX_PROVIDERS_TO_CHECK = 5
+
+# Задержка между проверками провайдеров, чтобы не перегружать сервер
+DELAY_BETWEEN_PROVIDERS = 2  # секунды
 
 
 async def get_providers(session: aiohttp.ClientSession) -> list[dict]:
@@ -71,9 +81,10 @@ async def send_request_to_model(
     """
     Делаем тестовый запрос к модели (ping).
     Если в потоке ответа появилась строка с "content",
-    считаем, что модель отвечает успешно.
+    и содержимое не начинается с "[!", считаем, что модель отвечает успешно.
+    Если содержимое "content" начинается с "[!", считаем модель некорректной и пропускаем её.
     """
-    # Желательная задержка между запросами (чтобы не спамить)
+    # Небольшая задержка перед каждым запросом, чтобы сгладить нагрузку
     await asyncio.sleep(1)
 
     async with semaphore:
@@ -96,10 +107,19 @@ async def send_request_to_model(
         try:
             async with session.post(url, json=body, headers=headers, timeout=10) as response:
                 async for line in response.content:
-                    decoded_line = line.decode("utf-8")
-                    if "error" in decoded_line:
+                    decoded_line = line.decode("utf-8").strip()
+                    try:
+                        data = json.loads(decoded_line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    if data.get("type") == "error":
                         return False, provider_name, model_name
-                    if "content" in decoded_line:
+
+                    if data.get("type") == "content":
+                        content_text = data.get("content", "")
+                        if content_text.startswith("[!"):
+                            return False, provider_name, model_name
                         return True, provider_name, model_name
 
         except asyncio.TimeoutError:
@@ -152,25 +172,31 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         successful_providers: list[dict] = []
         tasks: list[asyncio.Task] = []
 
+        checked_providers = 0
+
         for provider_info in raw_providers:
-            # Берём имя провайдера из поля "name" (или, при необходимости, из "label")
+            if checked_providers >= MAX_PROVIDERS_TO_CHECK:
+                break  # не проверяем больше провайдеров
             provider_name = provider_info.get("name")
             if not provider_name:
                 continue
 
             provider_key_lower = provider_name.lower()
             label_lower = provider_info.get("label", "").lower()
-
-            # Если в имени или лейбле есть нежелательные ключевые слова – пропускаем
             combined = provider_key_lower + " " + label_lower
+
+            # Фильтрация по ключевым словам
             if any(keyword in combined for keyword in ("webdriver", "ddg", "auth", "airforce", "arta")):
                 continue
 
             try:
-                logging.info(f"Checking provider '{provider_name}'...")
+                logging.info(
+                    f"Checking provider '{provider_name}' ({checked_providers + 1}/{MAX_PROVIDERS_TO_CHECK})...")
                 models = await get_models(session, provider_name)
+                # Ограничиваем число моделей для одного провайдера
+                models_to_check = models[:MAX_MODELS_PER_PROVIDER]
 
-                for model_data in models:
+                for model_data in models_to_check:
                     model_name = model_data.get("model")
                     if not model_name:
                         continue
@@ -180,10 +206,14 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         session, provider_name, model_name)
                     tasks.append(task)
 
+                checked_providers += 1
+
+                # После того как добавили задачи для этого провайдера, ждём перед следующим
+                await asyncio.sleep(DELAY_BETWEEN_PROVIDERS)
+
             except Exception as e:
                 logging.error(f"Error with provider '{provider_name}': {e}")
 
-        # Если после фильтрации не осталось задач – сообщаем
         if not tasks:
             await update.message.reply_text("После фильтрации не осталось провайдеров для проверки.")
             return
@@ -197,7 +227,6 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         available_providers = sort_providers(successful_providers)
 
-        # Записываем успешные провайдеры в файл
         try:
             with open(output_file, "w", encoding="utf-8") as file:
                 json.dump(available_providers, file,
@@ -205,7 +234,6 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logging.error(f"Не удалось записать в файл '{output_file}': {e}")
 
-        # Формируем и отправляем сообщение в чат
         if available_providers:
             message_lines = ["Успешные провайдеры и модели:"]
             for info in available_providers:
@@ -213,7 +241,6 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"Провайдер: {info['provider']}, модель: {info['model']}")
             await update.message.reply_text("\n".join(message_lines))
 
-            # Передаём первым успешным провайдером в change_provider_data
             first = available_providers[0]
             await change_provider_data(
                 update=update,
