@@ -1,6 +1,6 @@
 from telegram.ext import CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
-from utils import get_providers, clear_context, get_models, set_model, set_provider, set_img_model, send_img_models, send_help, set_defimgm, slot_machine, birthday
+from utils import get_providers, clear_context, get_models, set_model, set_provider, set_img_model, send_img_models, send_help, set_defimgm, slot_machine
 from core_func import start, draw, sex, handle_message, handle_model_selection
 from check_providers import check_providers
 
