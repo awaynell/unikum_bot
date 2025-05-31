@@ -67,10 +67,11 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
     loop = asyncio.get_event_loop()
     modetype = context.user_data.get('modetype', "text")
 
-    keys = list(img_providers.keys())
-    random_key = random.choice(keys)
-    random_provider = img_providers[random_key]["provider"]
-    random_model = img_providers[random_key]["model"]
+    if (modetype == 'draw'):
+        keys = list(img_providers.keys())
+        random_key = random.choice(keys)
+        random_provider = img_providers[random_key]["provider"]
+        random_model = img_providers[random_key]["model"]
 
     context.bot_data['provider'] = random_provider
     context.bot_data['model'] = random_model
