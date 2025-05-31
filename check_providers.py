@@ -5,7 +5,6 @@ import json
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
-import time
 
 from utils import api_base_url, isAdmin
 from common import change_provider_data
@@ -105,7 +104,7 @@ async def check_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         tasks = []
         for provider_name, provider_info in providers.items():
-            if any(keyword in provider_info.lower() for keyword in ('webdriver', 'ddg', 'auth', 'airforce')):
+            if any(keyword in provider_info.lower() for keyword in ('webdriver', 'ddg', 'auth', 'airforce', 'arta')):
                 continue
             try:
                 logging.info(f"Checking provider {provider_name}...")

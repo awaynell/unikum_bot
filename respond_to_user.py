@@ -5,6 +5,8 @@ from telegram.ext import ContextTypes
 import json
 import asyncio
 import time
+import random
+from providers import img_providers
 from logger import logger
 
 
@@ -64,6 +66,14 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 async def handle_model_response(temp_reply, chat_id, message_id, dialog_history, context, update, user_message, sent_message, context_history_key, current_img_count: int = 0, image_links: list = []):
     loop = asyncio.get_event_loop()
     modetype = context.user_data.get('modetype', "text")
+
+    keys = list(img_providers.keys())
+    random_key = random.choice(keys)
+    random_provider = img_providers[random_key]["provider"]
+    random_model = img_providers[random_key]["model"]
+
+    context.bot_data['provider'] = random_provider
+    context.bot_data['model'] = random_model
 
     provider = context.bot_data.get(
         'provider', default_provider) if modetype == 'text' else context.bot_data.get(
@@ -130,7 +140,7 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
                             temp_reply += response_json["content"]
 
                             # Обработка изображений
-                            if "\n<!-- generated images start" in temp_reply:
+                            if "[!" in temp_reply:
                                 image_links = temp_reply
 
                                 await asyncio.sleep(1.5)

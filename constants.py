@@ -20,7 +20,15 @@ default_img_model = img_providers['flux']['model']
 
 default_img_model_flow2 = 'midjourney'
 
-prompt_predict = "Next, I'll give you a message. You have to define the context of the message and what the user wants. You have 2 possible answers to choose from: text and draw. Answer only one of these two options. ANSWER IN ONE WORD. Here is the user's message:"
+prompt_predict = (
+    "Next you will receive a user message. Your task is to decide whether the user is "
+    "asking for a written/text response or for an image/drawing. There are exactly two "
+    "possible outputs:\n"
+    "- text (if the request requires a textual answer)\n"
+    "- draw (if the request requires generating an image or drawing)\n\n"
+    "Respond with exactly one of these words, in lowercase, and nothing else. "
+    "Here is the user’s message:"
+)
 
 max_generate_images_count = 1
 

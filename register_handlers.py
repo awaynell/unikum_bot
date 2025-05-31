@@ -21,8 +21,6 @@ def register_handlers(application):
     application.add_handler(CommandHandler("sex", sex))
     application.add_handler(CommandHandler("slot", slot_machine))
     application.add_handler(CommandHandler(
-        "VADIM_S_DNUKHOY", birthday, block=True))
-    application.add_handler(CommandHandler(
         "checkproviders", check_providers, block=True))
 
     application.add_handler(MessageHandler(
