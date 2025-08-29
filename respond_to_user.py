@@ -63,28 +63,68 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
         return
 
 
-async def handle_model_response(temp_reply, chat_id, message_id, dialog_history, context, update, user_message, sent_message, context_history_key, current_img_count: int = 0, image_links: list = []):
-    loop = asyncio.get_event_loop()
-    modetype = context.user_data.get('modetype', "text")
+async def handle_model_response(
+    temp_reply: str,
+    chat_id,
+    message_id,
+    dialog_history,
+    context,
+    update,
+    user_message: str,
+    sent_message,
+    context_history_key: str,
+    current_img_count: int = 0,
+    image_links: list | None = None,
+):
+    """
+    Стримит ответ модели/генератора картинок, обновляет сообщение в Telegram и
+    по необходимости переключает провайдера. Без фоновых блокировок и с защитой от UnboundLocalError.
+    """
+    if not api_base_url:
+        raise RuntimeError("api_base_url не задан в context.bot_data")
 
-    if (modetype == 'draw'):
-        keys = list(img_providers.keys())
-        random_key = random.choice(keys)
-        random_provider = img_providers[random_key]["provider"]
-        random_model = img_providers[random_key]["model"]
+    # Приводим image_links к списку
+    if image_links is None:
+        image_links = []
 
-    context.bot_data['provider'] = random_provider
-    context.bot_data['model'] = random_model
+    modetype = context.user_data.get("modetype", "text")
 
-    provider = context.bot_data.get(
-        'provider', default_provider) if modetype == 'text' else context.bot_data.get(
-        'imgprovider', default_img_provider)
+    # Лимит количества картинок на одну команду
+    if current_img_count >= max_generate_images_count:
+        # Последняя склейка/обработка перед выходом
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=sent_message.message_id,
+                text="Еще немного...",
+            )
+        except Exception:
+            pass
+        await handle_images(image_links, chat_id, context, update, api_base_url, user_message, sent_message)
+        return
 
-    model = context.bot_data.get(
-        'model', default_model) if modetype == 'text' else context.bot_data.get(
-        'imgmodel', default_img_model)
+    # ---------- Разруливание провайдера/модели ----------
+    if modetype == "draw":
+        # Выбираем случайного провайдера для изображений
+        key = random.choice(list(img_providers.keys()))
+        rp = img_providers[key].get("provider") or default_img_provider
+        rm = img_providers[key].get("model") or default_img_model
+
+        provider = rp
+        model = rm
+
+        context.bot_data["imgprovider"] = provider
+        context.bot_data["imgmodel"] = model
+    else:
+        # Текстовый режим: используем сохранённые или дефолтные
+        provider = context.bot_data.get("provider") or default_provider
+        model = context.bot_data.get("model") or default_model
+
+        context.bot_data["provider"] = provider
+        context.bot_data["model"] = model
 
     api_url = f"{api_base_url}/backend-api/v2/conversation"
+
     payload = {
         "model": model,
         "provider": provider,
@@ -92,102 +132,195 @@ async def handle_model_response(temp_reply, chat_id, message_id, dialog_history,
         "temperature": 0.4,
         "auto_continue": True,
         "conversation_id": chat_id,
-        "id": f"{chat_id}-{message_id}"
+        "id": f"{chat_id}-{message_id}",
+        "action": "next",
     }
 
-    if (len(image_links) > 0):
-        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Рисую... {current_img_count}/{max_generate_images_count}")
+    # Подпись процесса для картинок
+    if image_links:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=sent_message.message_id,
+                text=f"Рисую... {current_img_count}/{max_generate_images_count}",
+            )
+        except Exception:
+            pass
 
-    if (current_img_count > max_generate_images_count - 1):
-        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Еще немного...")
+    # Для автопереключения провайдера при ошибке
+    autoreplace_provider_arguments = {
+        "temp_reply": temp_reply,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "dialog_history": dialog_history,
+        "context": context,
+        "update": update,
+        "user_message": user_message,
+        "sent_message": sent_message,
+        "context_history_key": context_history_key,
+        "handle_model_response": handle_model_response,
+    }
 
-        await handle_images(image_links, chat_id, context, update, api_base_url, user_message, sent_message)
-        return
+    # ---------- Стрим запроса ----------
+    buffer = ""
+    last_edit_time = 0.0  # троттлинг
+    edit_interval = 0.5   # сек
 
-    logger.info("CURRENT PROVIDER: %s, CURRENT MODEL: %s", provider, model)
+    try:
+        async with aiohttp.ClientSession(read_timeout=None) as session:
+            async with session.post(api_url, json=payload) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"HTTP {response.status}: {text}")
 
-    async with aiohttp.ClientSession(read_timeout=None) as session:
-        async with await loop.run_in_executor(None, lambda: session.post(api_url, json=payload)) as response:
-            if response.status == 200:
-                # Отправка начального сообщения
-                last_edit_time = time.time()  # Время последнего редактирования
+                # Стримим построчно (NDJSON/SSE-подобный поток)
+                async for chunk in response.content.iter_any():
+                    if not chunk:
+                        continue
+                    buffer += chunk.decode("utf-8", errors="ignore")
 
-                autoreplace_provider_arguments = {
-                    'temp_reply': temp_reply,
-                    'chat_id': chat_id,
-                    'message_id': message_id,
-                    'dialog_history': dialog_history,
-                    'context': context,
-                    'update': update,
-                    'user_message': user_message,
-                    'sent_message': sent_message,
-                    'context_history_key': context_history_key,
-                    'handle_model_response': handle_model_response
-                }
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        print('line', line)
+                        line = line.strip()
+                        if not line:
+                            continue
 
-                async for line in response.content:
-                    decoded_line = line.decode('utf-8').strip()
-                    try:
-                        response_json = json.loads(decoded_line)
+                        # Каждая строка — JSON-объект
+                        try:
+                            response_json = json.loads(line)
+                        except Exception:
+                            # Если прилетело что-то не-JSON (серверный шум) — пропускаем
+                            continue
 
-                        # handle error
-                        if (response_json.get("type") == "error"):
-                            if (modetype == "draw"):
-                                await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Ошибка: {response_json["error"]}")
+                        # Логирование по вкусу:
+                        # logger.info("RESPONSE JSON: %s", response_json)
+
+                        typ = response_json.get("type")
+
+                        # Обработка ошибок
+                        if typ == "error":
+                            err_msg = response_json.get(
+                                "error", "Неизвестная ошибка")
+                            if modetype == "draw":
+                                # Показываем ошибку пользователю
+                                try:
+                                    await context.bot.edit_message_text(
+                                        chat_id=chat_id,
+                                        message_id=sent_message.message_id,
+                                        text=f'Ошибка: {err_msg}',
+                                    )
+                                except Exception:
+                                    pass
                                 return
+                            # Текстовый режим — пробуем автосмену провайдера
                             await autoreplace_provider(**autoreplace_provider_arguments)
                             return
-                        elif response_json.get("type") == "content":
-                            temp_reply += response_json["content"]
 
-                            # Обработка изображений
+                        # Основной поток контента
+                        if typ == "content":
+                            piece = response_json.get("content", "")
+                            if not isinstance(piece, str):
+                                piece = str(piece)
+                            temp_reply += piece
+
+                            # Детектор сигнала для картинок (оставляю твою эвристику)
                             if "[!" in temp_reply:
-                                image_links = temp_reply
+                                # ВНИМАНИЕ: раньше тут было image_links = temp_reply (строка)
+                                # Дальше передаём как список: одна «порция» ссылок = текущая строка
+                                image_links.append(temp_reply)
 
+                                # Небольшая пауза, чтобы сервер успел докинуть хвост
                                 await asyncio.sleep(1.5)
 
-                                await handle_model_response(temp_reply=temp_reply, chat_id=chat_id, context=context, update=update, user_message=user_message, sent_message=sent_message, context_history_key=context_history_key, current_img_count=current_img_count + 1,
-                                                            dialog_history=dialog_history,
-                                                            message_id=message_id, image_links=image_links)
-                                break
+                                # Рекурсивный вызов для следующего изображения
+                                await handle_model_response(
+                                    temp_reply=temp_reply,
+                                    chat_id=chat_id,
+                                    context=context,
+                                    update=update,
+                                    user_message=user_message,
+                                    sent_message=sent_message,
+                                    context_history_key=context_history_key,
+                                    current_img_count=current_img_count + 1,
+                                    dialog_history=dialog_history,
+                                    message_id=message_id,
+                                    image_links=image_links,
+                                )
+                                return  # важно: выходим из текущей корутины
 
+                            # Ограничение на длину одного сообщения
                             if "One message exceeds the 1000chars per message limit" in temp_reply:
-                                if (modetype == "draw"):
-                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"Ошибка: {response_json["error"]}")
+                                if modetype == "draw":
+                                    try:
+                                        await context.bot.edit_message_text(
+                                            chat_id=chat_id,
+                                            message_id=sent_message.message_id,
+                                            text="Ошибка: сообщение превысило лимит длины",
+                                        )
+                                    except Exception:
+                                        pass
                                     return
                                 await autoreplace_provider(**autoreplace_provider_arguments)
                                 return
 
-                            current_time = time.time()
-                            # Проверка времени для редактирования сообщения
-                            if current_time - last_edit_time >= 0.5:
+                            # Периодически обновляем сообщение
+                            now = time.time()
+                            if now - last_edit_time >= edit_interval:
                                 try:
-                                    # Экранирование текста перед отправкой
-                                    escaped_temp_reply = escape_markdown(
-                                        temp_reply)
-                                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=escaped_temp_reply, parse_mode='MarkdownV2')
-                                    last_edit_time = current_time
-                                except Exception as e:
-                                    print(f"Error: {e}")
+                                    escaped = escape_markdown(temp_reply)
+                                    await context.bot.edit_message_text(
+                                        chat_id=chat_id,
+                                        message_id=sent_message.message_id,
+                                        text=escaped,
+                                        parse_mode="MarkdownV2",
+                                    )
+                                except Exception:
+                                    # Молча глотаем эксепшны Telegram, чтобы не ронять поток
+                                    pass
                                 finally:
-                                    continue
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=str(e))
-                try:
-                    providers.reset_retry_count()
+                                    last_edit_time = now
 
-                    if (len(image_links) > 0):
+                # Поток завершён — финализируем
+                try:
+                    # Сбрасываем счётчик ретраев провайдера (если есть такой модуль)
+                    try:
+                        providers.reset_retry_count()
+                    except Exception:
+                        pass
+
+                    # Если у нас шёл режим картинок и уже есть ссылки — не дублируем финал
+                    if image_links:
                         return
 
                     bot_reply = temp_reply
-                    # Финальное редактирование сообщения после завершения цикла
                     escaped_bot_reply = escape_markdown(bot_reply)
-                    await context.bot.edit_message_text(chat_id=chat_id, message_id=sent_message.message_id, text=f"{escaped_bot_reply}", parse_mode='MarkdownV2')
+                    await context.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=sent_message.message_id,
+                        text=escaped_bot_reply,
+                        parse_mode="MarkdownV2",
+                    )
+
+                    # Добавляем в историю чата
+                    context.chat_data.setdefault(context_history_key, [])
                     context.chat_data[context_history_key].append(
-                        {"role": "assistant", "content": bot_reply})
+                        {"role": "assistant", "content": bot_reply}
+                    )
+
                 except Exception as e:
-                    print(f"Error: {e}")
-                    raise ValueError(e)
-            else:
-                raise ValueError(e)
+                    # Если тут упадём — отдаём как ValueError выше по стеку
+                    raise ValueError(e) from e
+
+    except Exception as e:
+        # Общее перехватывание сетевых/парсинговых ошибок
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=sent_message.message_id,
+                text=str(e),
+            )
+        except Exception:
+            pass
+        # Пробросим, если нужно внешнее логирование
+        # raise
