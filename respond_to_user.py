@@ -41,7 +41,7 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
         {"role": "user", "content": user_message})
 
     # Ограничение истории (но сохраняем системный промпт)
-    max_history_length = 30
+    max_history_length = 10
     if len(context.chat_data[context_history_key]) > max_history_length:
         # Сохраняем первое сообщение (system) и последние N сообщений
         system_msg = context.chat_data[context_history_key][0]
