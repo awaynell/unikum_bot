@@ -1,9 +1,9 @@
 
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InputMediaPhoto
 from telegram.ext import ContextTypes
 
 from utils import get_models
-from constants import default_img_model_flow2, prompt_for_russian_AI_answer
+from constants import default_img_model_flow2
 from respond_to_user import respond_to_user
 from generateImg import getImgFromAPI
 from utils import predict_user_message_context, translate_user_message, show_main_menu, set_defimgm
@@ -36,7 +36,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "@" in user_message:
         user_message = user_message.split(" ", 1)[1].strip()
     ru_user_message = f"{
-        user_message}, {prompt_for_russian_AI_answer}"
+        user_message}"
 
     await predict_user_message_context(update, context, user_message, chat_id, message_id)
 
@@ -103,7 +103,8 @@ async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_T
     if command == '/provider':
         context.bot_data['provider'] = name
         await query.edit_message_text(text=f"Вы выбрали провайдер: {name}")
-        await get_models(update, context, query.message.message_id)
+        # Передаем query вместо update
+        await get_models(update, context, message_id=None, from_callback=True)
     if command == '/defimgm':
         await set_defimgm(update, context, key=name)
 

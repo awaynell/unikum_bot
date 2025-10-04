@@ -8,7 +8,7 @@ import time
 import random
 from providers import img_providers
 from logger import logger
-
+import telegram
 
 from constants import default_model, default_provider, api_base_url, max_generate_images_count, default_img_model, default_img_provider
 from handle_images import handle_images
@@ -23,22 +23,30 @@ async def respond_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, us
     user_id = update.message.from_user.id
     username = update.message.from_user.username
 
-    # Отправка состояния "печатает..."
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     context_history_key = f"history-{chat_id}"
 
-    # Инициализация истории сообщений, если её ещё нет
+    # ✅ ИЗМЕНЕНО: Инициализация истории с системным промптом
     if context_history_key not in context.chat_data:
-        context.chat_data[context_history_key] = []
+        context.chat_data[context_history_key] = [
+            {
+                "role": "system",
+                "content": "Ты полезный AI-ассистент. Отвечай на русском языке, учитывай контекст предыдущих сообщений в диалоге."
+            }
+        ]
 
     # Добавление нового сообщения пользователя в историю
     context.chat_data[context_history_key].append(
         {"role": "user", "content": user_message})
 
-    # Ограничение истории, чтобы не превышать лимиты API
-    max_history_length = 30  # Можно настроить по необходимости
-    context.chat_data[context_history_key] = context.chat_data[context_history_key][-max_history_length:]
+    # Ограничение истории (но сохраняем системный промпт)
+    max_history_length = 30
+    if len(context.chat_data[context_history_key]) > max_history_length:
+        # Сохраняем первое сообщение (system) и последние N сообщений
+        system_msg = context.chat_data[context_history_key][0]
+        context.chat_data[context_history_key] = [
+            system_msg] + context.chat_data[context_history_key][-(max_history_length-1):]
 
     dialog_history = context.chat_data[context_history_key]
 
@@ -136,6 +144,12 @@ async def handle_model_response(
         "action": "next",
     }
 
+    logger.info(f"🔍 Sending payload to API:")
+    logger.info(f"Provider: {provider}, Model: {model}")
+    logger.info(f"Messages count: {len(dialog_history)}")
+    logger.info(
+        f"Full messages: {json.dumps(dialog_history, ensure_ascii=False, indent=2)}")
+
     # Подпись процесса для картинок
     if image_links:
         try:
@@ -165,6 +179,7 @@ async def handle_model_response(
     buffer = ""
     last_edit_time = 0.0  # троттлинг
     edit_interval = 0.5   # сек
+    last_sent_text = ""   # ✅ ДОБАВЛЕНО: отслеживание последнего отправленного текста
 
     try:
         async with aiohttp.ClientSession(read_timeout=None) as session:
@@ -181,7 +196,6 @@ async def handle_model_response(
 
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
-                        print('line', line)
                         line = line.strip()
                         if not line:
                             continue
@@ -193,13 +207,10 @@ async def handle_model_response(
                             # Если прилетело что-то не-JSON (серверный шум) — пропускаем
                             continue
 
-                        # Логирование по вкусу:
-                        # logger.info("RESPONSE JSON: %s", response_json)
-
-                        typ = response_json.get("type")
+                        type = response_json.get("type")
 
                         # Обработка ошибок
-                        if typ == "error":
+                        if type == "error":
                             err_msg = response_json.get(
                                 "error", "Неизвестная ошибка")
                             if modetype == "draw":
@@ -218,17 +229,25 @@ async def handle_model_response(
                             return
 
                         # Основной поток контента
-                        if typ == "content":
+                        if type == "content":
                             piece = response_json.get("content", "")
                             if not isinstance(piece, str):
                                 piece = str(piece)
                             temp_reply += piece
 
-                            # Детектор сигнала для картинок (оставляю твою эвристику)
-                            if "[!" in temp_reply:
-                                # ВНИМАНИЕ: раньше тут было image_links = temp_reply (строка)
-                                # Дальше передаём как список: одна «порция» ссылок = текущая строка
-                                image_links.append(temp_reply)
+                            # ✅ ИЗМЕНЕНО: Детектор сигнала для картинок - поддержка нового формата
+                            # Новый формат с массивом URLs
+                            urls = response_json.get("urls")
+
+                            # Проверяем оба формата: новый (urls) и старый ([!, <a href)
+                            if urls or "[!" in temp_reply or "<a href" in temp_reply:
+                                # Сохраняем данные о картинке
+                                image_data = {
+                                    "content": temp_reply,
+                                    "urls": urls or [],  # URLs из нового формата
+                                    "alt": response_json.get("alt", "Generated image")
+                                }
+                                image_links.append(image_data)
 
                                 # Небольшая пауза, чтобы сервер успел докинуть хвост
                                 await asyncio.sleep(1.5)
@@ -267,19 +286,32 @@ async def handle_model_response(
                             # Периодически обновляем сообщение
                             now = time.time()
                             if now - last_edit_time >= edit_interval:
-                                try:
-                                    escaped = escape_markdown(temp_reply)
-                                    await context.bot.edit_message_text(
-                                        chat_id=chat_id,
-                                        message_id=sent_message.message_id,
-                                        text=escaped,
-                                        parse_mode="MarkdownV2",
-                                    )
-                                except Exception:
-                                    # Молча глотаем эксепшны Telegram, чтобы не ронять поток
-                                    pass
-                                finally:
-                                    last_edit_time = now
+                                # ✅ ИЗМЕНЕНО: проверяем, изменился ли текст
+                                escaped = escape_markdown(temp_reply)
+                                if escaped != last_sent_text:  # Обновляем только если текст изменился
+                                    try:
+                                        await context.bot.edit_message_text(
+                                            chat_id=chat_id,
+                                            message_id=sent_message.message_id,
+                                            text=escaped,
+                                            parse_mode="MarkdownV2",
+                                        )
+                                        last_sent_text = escaped  # Сохраняем последний отправленный текст
+                                    except telegram.error.BadRequest as e:
+                                        # ✅ ДОБАВЛЕНО: специальная обработка BadRequest
+                                        if "message is not modified" in str(e).lower():
+                                            logger.debug(
+                                                f"Message not modified, skipping update")
+                                        else:
+                                            logger.warning(
+                                                f"Telegram error during edit: {e}")
+                                    except Exception as e:
+                                        logger.error(
+                                            f"Error editing message: {e}")
+                                    finally:
+                                        last_edit_time = now
+                                else:
+                                    last_edit_time = now  # Обновляем время, даже если не отправляли
 
                 # Поток завершён — финализируем
                 try:
@@ -295,12 +327,15 @@ async def handle_model_response(
 
                     bot_reply = temp_reply
                     escaped_bot_reply = escape_markdown(bot_reply)
-                    await context.bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=sent_message.message_id,
-                        text=escaped_bot_reply,
-                        parse_mode="MarkdownV2",
-                    )
+
+                    # ✅ ИЗМЕНЕНО: финальное обновление только если текст изменился
+                    if escaped_bot_reply != last_sent_text:
+                        await context.bot.edit_message_text(
+                            chat_id=chat_id,
+                            message_id=sent_message.message_id,
+                            text=escaped_bot_reply,
+                            parse_mode="MarkdownV2",
+                        )
 
                     # Добавляем в историю чата
                     context.chat_data.setdefault(context_history_key, [])

@@ -129,42 +129,76 @@ async def send_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_message3)
 
 
-async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message_id: int = None):
+async def get_models(update: Update, context: ContextTypes.DEFAULT_TYPE, message_id: int = None, from_callback: bool = False):
     import constants
 
     is_admin = isAdmin(update, context)
 
     if is_admin == False:
-        await update.message.reply_text("Nah, you're not an admin.")
+        # Исправлено: проверяем, откуда вызвана функция
+        if from_callback:
+            await update.callback_query.message.reply_text("Nah, you're not an admin.")
+        else:
+            await update.message.reply_text("Nah, you're not an admin.")
         return
 
     chat_id = update.effective_chat.id
 
-    current_message_id = message_id or update.message.message_id
+    # Исправлено: правильное определение message_id
+    if message_id is None:
+        if from_callback:
+            current_message_id = update.callback_query.message.message_id
+        else:
+            current_message_id = update.message.message_id
+    else:
+        current_message_id = message_id
 
-    api_url = f"{api_base_url}/backend-api/v2/models/{
-        context.bot_data.get('provider', constants.default_provider)}"
+    api_url = f"{api_base_url}/backend-api/v2/models/{context.bot_data.get('provider', constants.default_provider)}"
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(api_url) as response:
-            if response.status == 200:
-                models = await response.json()
-                message = (
-                    f"Доступные модели:\n\nТекущая модель: {
-                        context.bot_data.get('model', constants.default_model)}"
-                )
+    # Добавлен таймаут для запроса
+    timeout = aiohttp.ClientTimeout(total=30)  # 30 секунд таймаут
 
-                # Создание кнопок для каждой модели
-                buttons = [
-                    [InlineKeyboardButton(
-                        model['model'], callback_data=f'/model {model["model"]}') for model in models[i:i+4]]
-                    for i in range(0, len(models), 4)
-                ]
-                reply_markup = InlineKeyboardMarkup(buttons)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(api_url) as response:
+                if response.status == 200:
+                    models = await response.json()
+                    message = (
+                        f"Доступные модели:\n\nТекущая модель: {context.bot_data.get('model', constants.default_model)}"
+                    )
 
-                await context.bot.send_message(text=message, reply_markup=reply_markup, parse_mode='Markdown', reply_to_message_id=current_message_id, chat_id=chat_id)
-            else:
-                await update.message.reply_text("Произошла ошибка при получении списка моделей.")
+                    # Создание кнопок для каждой модели
+                    buttons = [
+                        [InlineKeyboardButton(
+                            model['model'], callback_data=f'/model {model["model"]}') for model in models[i:i+4]]
+                        for i in range(0, len(models), 4)
+                    ]
+                    reply_markup = InlineKeyboardMarkup(buttons)
+
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=message,
+                        reply_markup=reply_markup,
+                        parse_mode='Markdown'
+                    )
+                else:
+                    error_msg = "Произошла ошибка при получении списка моделей."
+                    if from_callback:
+                        await update.callback_query.message.reply_text(error_msg)
+                    else:
+                        await update.message.reply_text(error_msg)
+    except asyncio.TimeoutError:
+        error_msg = "Таймаут при получении списка моделей. Попробуйте позже."
+        if from_callback:
+            await update.callback_query.message.reply_text(error_msg)
+        else:
+            await update.message.reply_text(error_msg)
+    except Exception as e:
+        error_msg = f"Ошибка: {str(e)}"
+        if from_callback:
+            await update.callback_query.message.reply_text(error_msg)
+        else:
+            await update.message.reply_text(error_msg)
 
 
 async def get_providers(update: Update, context: ContextTypes.DEFAULT_TYPE):
