@@ -440,9 +440,19 @@ async def slot_machine(update: Update, context: CallbackContext) -> None:
             reel.append(random.choice(emoji_slots))
 
         slot_display = generate_slot_display(reels)
-        # Случайная задержка для более естественной анимации
-        await asyncio.sleep(random.uniform(0.1, 0.3))
-        await message.edit_text(f"🎰\n{slot_display}")
+        # Увеличенная задержка перед редактированием для избежания блокировки API
+        await asyncio.sleep(random.uniform(0.3, 0.5))
+        try:
+            await message.edit_text(f"🎰\n{slot_display}")
+            # Задержка после редактирования, чтобы дать API время обработать запрос
+            await asyncio.sleep(0.3)
+        except Exception as e:
+            # Если произошла ошибка (например, rate limit), увеличиваем задержку
+            await asyncio.sleep(0.7)
+            try:
+                await message.edit_text(f"🎰\n{slot_display}")
+            except Exception:
+                pass  # Пропускаем, если не удалось отредактировать
 
     # Финальный результат
     final_display = generate_slot_display(reels)
