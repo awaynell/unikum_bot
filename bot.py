@@ -1,19 +1,21 @@
-from telegram.ext import ApplicationBuilder
+from telegram import BotCommand
+from telegram.ext import Application, ApplicationBuilder
 
 from register_handlers import register_handlers
 from constants import tg_bot_token
 
 
-def main():
-    # Вставь свой токен здесь
-    token = tg_bot_token
+async def post_init(application: Application):
+    await application.bot.set_my_commands([
+        BotCommand("vadim_s_dnukhoy", "Поздравить Вадима как легенду")
+    ])
 
-    # Создаем приложение
-    application = ApplicationBuilder().token(token).build()
+
+def main():
+    token = tg_bot_token
+    application = ApplicationBuilder().token(token).post_init(post_init).build()
 
     register_handlers(application=application)
-
-    # Запуск бота
     application.run_polling()
 
 
